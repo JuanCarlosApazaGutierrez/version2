@@ -1,0 +1,183 @@
+{% extends 'base_empleado.html' %}
+
+{% block content %}
+<br/>
+
+<div class="span9" id="content">
+
+    <div class="row-fluid">
+        <div class="block">
+            <div class="navbar navbar-inner block-header">
+                <div class="muted pull-left"><h4>ESTADO DE ALERTAS TOTALES MENSUALES</h4></div>
+                <div class="pull-right">
+                    <a href="#graficaMes" data-toggle="modal"><button class="btn btn-primary">Buscar datos del Paciente <i class="icon-search icon-white"></i></button></a>
+                </div>
+            </div>
+            <div class="block-content collapse in">
+                <div class="span12">
+                    <div id="hero-area" style="height: 250px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row-fluid section">
+        <div class="block">
+            <div class="navbar navbar-inner block-header">
+                <div class="muted pull-left"><h4>MONITOREO DIARIO</h4></div>
+                <div class="pull-right">
+                    <a href="#graficaDia" data-toggle="modal"><button class="btn btn-success">Buscar datos del Paciente <i class="icon-search icon-white"></i></button></a>
+                </div>
+            </div>
+            <div class="block-content collapse in">
+                <div class="span12">
+                    <div id="hero-graph" style="height: 230px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div id="graficaMes" class="modal hide">
+    <div class="modal-header">
+        <button data-dismiss="modal" class="close" type="button">&times;</button>
+        <h3>Buscar Eventos Mensuales</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal" id="formGraficaMes">
+            <fieldset>
+                <br/>
+                <div class="control-group">
+                    <label class="control-label" for="paciente">Código Paciente</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="paciente" type="text" value="">
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-primary" type="button" onclick="generarReporteMensual()">Generar</button>
+        <button class="btn" data-dismiss="modal">Cancelar</button>
+    </div>
+</div>
+
+<div id="graficaDia" class="modal hide">
+    <div class="modal-header">
+        <button data-dismiss="modal" class="close" type="button">&times;</button>
+        <h3>Buscar Eventos Diarios</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal" id="formGraficaDia">
+            <fieldset>
+                <br/>
+                <div class="control-group">
+                    <label class="control-label" for="paciente_dia">Código Paciente</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="paciente_dia" type="text" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="fecha_dia">Fecha</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="fecha_dia" type="date" value="">
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-primary" type="button" onclick="generarReporteDiario()">Generar</button>
+        <button class="btn" data-dismiss="modal">Cancelar</button>
+    </div>
+</div>
+
+<script>
+function generarReporteDiario() {
+    var pacienteDia = $("#paciente_dia").val(); 
+    var fechaDia = $("#fecha_dia").val();   
+    if (!pacienteDia || !fechaDia) {
+        alert("Por favor ingrese el código de paciente y la fecha.");
+        return;
+    }
+    $.ajax({
+        url: "/generar_reporte_diario",   
+        method: "POST",
+        data: {
+            'paciente_dia': pacienteDia,
+            'fecha_dia': fechaDia,
+            'csrfmiddlewaretoken': '{{ csrf_token }}'  
+        },
+        success: function(response) {
+            alert("Reporte diario generado con éxito.");
+            console.log(response); // Verificar la estructura de datos que se devuelve
+
+            // Actualizar la gráfica con los datos obtenidos
+            Morris.Line({
+                element: 'hero-graph',
+                data: response.frecuencias, // Asegúrate de que la respuesta tenga la estructura correcta
+                xkey: 'period',
+                ykeys: ['bocinas', 'ladridos', 'petardos'],
+                labels: ['Bocinas', 'Ladridos', 'Petardos'],
+                lineColors: ["#81d5d9", "#a6e182", "#67bdf8"],
+                lineWidth: 2,
+                hideHover: 'auto'
+            });
+        },
+        error: function() {
+            alert("Hubo un error al generar el reporte.");
+        }
+    });
+}
+
+function generarReporteMensual() {
+    var paciente = $("#paciente").val();  
+    if (!paciente) {
+        alert("Por favor ingrese un código de paciente.");
+        return;
+    }
+    $.ajax({
+        url: "/generar_reporte_mensual",  
+        method: "POST",
+        data: {
+            'paciente': paciente,
+            'csrfmiddlewaretoken': '{{ csrf_token }}'   
+        },
+        success: function(response) {
+            alert("Reporte mensual generado con éxito.");
+            console.log(response);   
+
+            // Actualizar la gráfica mensual con los datos obtenidos
+            Morris.Area({
+                element: 'hero-area',
+                data: response.frecuencias,  
+                xkey: 'period',
+                ykeys: ['bocinas', 'ladridos', 'petardos'],
+                labels: ['Bocinas', 'Ladridos', 'Petardos'],
+                lineColors: ["#81d5d9", "#a6e182", "#67bdf8"],
+                lineWidth: 2,
+                hideHover: 'auto'
+            });
+        },
+        error: function() {
+            alert("Hubo un error al generar el reporte.");
+        }
+    });
+}
+</script>
+
+<link rel="stylesheet" href="../static/op3/vendors/morris/morris.css">
+<script src="../static/op3/vendors/jquery-1.9.1.min.js"></script>
+<script src="../static/op3/vendors/jquery.knob.js"></script>
+<script src="../static/op3/vendors/raphael-min.js"></script>
+<script src="../static/op3/vendors/morris/morris.min.js"></script>
+<script src="../static/op3/vendors/flot/jquery.flot.js"></script>
+<script src="../static/op3/vendors/flot/jquery.flot.categories.js"></script>
+<script src="../static/op3/vendors/flot/jquery.flot.pie.js"></script>
+<script src="../static/op3/vendors/flot/jquery.flot.time.js"></script>
+<script src="../static/op3/vendors/flot/jquery.flot.stack.js"></script>
+<script src="../static/op3/vendors/flot/jquery.flot.resize.js"></script>
+
+
+{% endblock %}

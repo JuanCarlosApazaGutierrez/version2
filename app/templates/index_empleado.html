@@ -1,0 +1,105 @@
+{% extends 'base_empleado.html' %}
+
+{% block content %}
+<div class="span9" id="content">
+    
+    <div class="row-fluid">
+        <!-- block -->
+        <div class="block">
+            <div class="navbar navbar-inner block-header">
+                <div class="muted pull-left">Estadisticas de Pacientes en General</div>
+                <div class="pull-right"><span class="badge badge-warning">Ver Completo</span></div>
+            </div>
+            <div class="block-content collapse in">
+                <div class="span3">
+                    <div class="chart" data-percent="{{ porcentaje_normal }}">{{ porcentaje_normal }}%</div>
+                    <div class="chart-bottom-heading"><span class="label label-info">Pacientes sin Alertas</span></div>
+                </div>
+                <div class="span3">
+                    <div class="chart" data-percent="{{ porcentaje_bocinas }}">{{ porcentaje_bocinas }}%</div>
+                    <div class="chart-bottom-heading"><span class="label label-info">Alertas de Bocinas</span></div>
+                </div>
+                <div class="span3">
+                    <div class="chart" data-percent="{{ porcentaje_ladridos }}">{{ porcentaje_ladridos }}%</div>
+                    <div class="chart-bottom-heading"><span class="label label-info">Alertas de Ladridos</span></div>
+                </div>
+                <div class="span3">
+                    <div class="chart" data-percent="{{ porcentaje_petardos }}">{{ porcentaje_petardos }}%</div>
+                    <div class="chart-bottom-heading"><span class="label label-info">Alertas de Petardos</span></div>
+                </div>
+            </div>
+            
+        </div>
+        <!-- /block -->
+    </div>
+
+    <div class="row-fluid">
+        <div class="span6">
+            <!-- block -->
+            <div class="block">
+                <div class="navbar navbar-inner block-header">
+                    <div class="muted pull-left">Encargados</div>
+                    <div class="pull-right"><span class="badge badge-info">{{ total_encargados }} Padres Totales</span></div>
+                </div>
+                <div class="block-content collapse in">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Nombre Encargado</th>
+                                <th>Carnet</th>
+                                <th>Paciente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for encargado in padres %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ encargado.nombre }}</td>   
+                                <td>{{ encargado.carnet }}</td>  
+                                <td>{{ encargado.correo }}</td>   
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- /block -->
+        </div>
+        
+        <div class="span6">
+            <!-- block -->
+            <div class="block">
+                <div class="navbar navbar-inner block-header">
+                    <div class="muted pull-left">Pacientes</div>
+                    <div class="pull-right"><span class="badge badge-success">{{ total_pacientes }} Pacientes Totales</span></div>
+                </div>
+                <div class="block-content collapse in">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Nombre Paciente</th>
+                                <th>Frecuencia</th>
+                                <th>Estado Actual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for paciente in pacientes %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ paciente.nombre }}</td>   
+                                <td>{{ paciente.carnet }}</td>  
+                                <td>{{ paciente.diagnostico }}</td>  
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- /block -->
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<br/>
+<div class="span9" id="content">
+    <div class="row-fluid">
+        <div class="block">
+            <div class="navbar navbar-inner block-header">
+                <div class="muted pull-left"><h4>VER INFORME PACIENTE</h4></div>
+            </div>
+            <div class="block-content collapse in">
+                <div class="span12">
+                    <div class="table-toolbar">
+                        <div class="btn-group">
+                            <a href="#generarReporte" data-toggle="modal"><button class="btn btn-success">Buscar Paciente <i class="icon-plus icon-white"></i></button></a>
+                        </div>
+                        <div class="btn-group pull-right" id="opcionesButtonGroup">
+                            <button data-toggle="dropdown" class="btn dropdown-toggle">Opciones <span class="caret"></span></button>
+                            <ul class="dropdown-menu">
+                                <li><a href="#" onclick="guardarComoPDF()">Guardar como PDF</a></li>
+                                <li><a href="#">Exportar en Excel</a></li>
+                            </ul>
+                        </div>
+                        <div class="btn-group pull-right" id="guardarButtonGroup" style="display:none;">
+                            <button class="btn btn-primary" onclick="guardarComoPDF()">Guardar como PDF</button>
+                        </div>
+                    </div>
+                    
+                    <table cellpadding="0" cellspacing="0" border="0" class="table table-striped table-bordered" id="frecuenciaTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Paciente</th>
+                                <th>Carnet Paciente</th>
+                                <th>Ritmo</th>
+                                <th>Clasificación</th>
+                                <th>Valor</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody id="frecuenciaTableBody">
+                            <!-- Los datos se insertarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="generarReporte" class="modal hide">
+    <div class="modal-header">
+        <button data-dismiss="modal" class="close" type="button">&times;</button>
+        <h3>Generar Informe Paciente</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal" id="reporteForm">
+            <fieldset>
+                <br/>
+                <div class="control-group">
+                    <label class="control-label" for="paciente">Código Paciente</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="paciente" type="text" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="fecha">Fecha</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="fecha" type="date" value="">
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-primary" onclick="generarReporte()">Generar</button>
+        <button class="btn" data-dismiss="modal">Cancelar</button>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.21/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+    let encargadoNombre = "";
+    let encargadoCorreo = "";
+    let encargadoCarnet = "";
+
+    function generarReporte() {
+        const paciente = document.getElementById("paciente").value;
+        const fecha = document.getElementById("fecha").value;
+
+        if (!paciente || !fecha) {
+            alert("Por favor, complete todos los campos.");
+            return;
+        }
+
+        fetch("/buscar_frecuencia", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paciente, fecha })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.mensaje) {
+                alert(data.mensaje);
+            } else {
+                let frecuencias = data.frecuencias;
+                let tbody = document.querySelector("#frecuenciaTableBody");
+                tbody.innerHTML = '';  
+
+                frecuencias.forEach(frecuencia => {
+                    let tr = document.createElement("tr");
+
+                    let fecha = new Date(frecuencia.fecha);
+                    let day = ("0" + fecha.getDate()).slice(-2);
+                    let month = ("0" + (fecha.getMonth() + 1)).slice(-2);
+                    let year = fecha.getFullYear().toString().slice(-2);
+                    let hours = ("0" + fecha.getHours()).slice(-2);
+                    let minutes = ("0" + fecha.getMinutes()).slice(-2);
+                    let formattedFecha = `${day}/${month}/${year} ${hours}:${minutes}`;
+
+                    tr.innerHTML = `
+                        <td>${frecuencia.id_frecuencia}</td>
+                        <td>${frecuencia.nombre_paciente}</td>
+                        <td>${paciente}</td>
+                        <td>${frecuencia.ritmo}</td>
+                        <td>${frecuencia.clasificacion}</td>
+                        <td>${frecuencia.valor}</td>
+                        <td>${formattedFecha}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Guardar datos del encargado
+                encargadoNombre = data.nombre_encargado || "No disponible";
+                encargadoCorreo = data.correo_encargado || "No disponible";
+                encargadoCarnet = data.carnet_encargado || "No disponible";
+
+                document.getElementById('opcionesButtonGroup').style.display = 'none';
+                document.getElementById('guardarButtonGroup').style.display = 'block';
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    function guardarComoPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.addImage('../static/img/logo_info.png', 'PNG', 15, 10, 50, 30);
+        doc.setFontSize(18);
+        doc.text('Informe del Paciente', 105, 30, { align: 'center' });
+
+        const fechaActual = new Date();
+        const dia = ("0" + fechaActual.getDate()).slice(-2);
+        const mes = ("0" + (fechaActual.getMonth() + 1)).slice(-2);
+        const anio = fechaActual.getFullYear();
+        const horas = ("0" + fechaActual.getHours()).slice(-2);
+        const minutos = ("0" + fechaActual.getMinutes()).slice(-2);
+        const fechaTexto = `${dia}/${mes}/${anio}`;
+        const horaTexto = `${horas}:${minutos}`;
+        const lugar = "La Paz - Bolivia";
+
+        const infoData = [
+            ["Encargado:", encargadoNombre, "Fecha:", fechaTexto],
+            ["Correo:", encargadoCorreo, "Hora:", horaTexto],
+            ["Carnet:", encargadoCarnet, "Lugar:", lugar]
+        ];
+
+        doc.autoTable({
+            body: infoData,
+            startY: 45,
+            theme: 'grid',
+            styles: { fontSize: 10, cellPadding: 1.5 },
+            columnStyles: {
+                0: { fontStyle: 'bold' },
+                2: { fontStyle: 'bold' }
+            }
+        });
+
+        const table = document.getElementById("frecuenciaTable");
+        const rows = table.rows;
+        let tableData = [];
+
+        for (let i = 1; i < rows.length; i++) {
+            let rowData = [];
+            for (let j = 0; j < rows[i].cells.length; j++) {
+                rowData.push(rows[i].cells[j].innerText);
+            }
+            tableData.push(rowData);
+        }
+
+        doc.autoTable({
+            head: [['#', 'Paciente', 'Carnet Paciente', 'Ritmo', 'Clasificación', 'Valor', 'Fecha']],
+            body: tableData,
+            startY: doc.lastAutoTable.finalY + 5,
+            styles: { fontSize: 10, cellPadding: 2 }
+        });
+
+        doc.save('informe_paciente.pdf');
+    }
+</script>
+
+
+</script>
+
+{% endblock %}
