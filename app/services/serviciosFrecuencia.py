@@ -4,7 +4,7 @@ from app.serializer.serializadorUniversal import SerializadorUniversal
 from app.config.extensiones import db
 from datetime import datetime
 from sqlalchemy import func, extract
-
+from sqlalchemy import desc   
 class ServiciosFrecuencia():
     def crear(paciente, ritmo, clasificacion, valor, estado=None):
         frecuencia = Frecuencia(paciente, ritmo, clasificacion, valor, estado)
@@ -72,11 +72,8 @@ class ServiciosFrecuencia():
         return respuesta
 
     def obtener_frecuencias_por_paciente_y_fecha(id_paciente, fecha):
-        # Convertir la fecha a formato datetime si no lo es
         fecha = str(fecha)
-        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d')  # Suponiendo que la fecha es un string con formato YYYY-MM-DD
-
-        # Realizar la consulta
+        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d')  
         frecuencias = db.session.query(
             Frecuencia.id_frecuencia,
             Frecuencia.ritmo,
@@ -88,7 +85,6 @@ class ServiciosFrecuencia():
         .filter(func.date(Frecuencia.fecha) == func.date(fecha_obj)) \
         .all()
 
-        # Retornar los resultados como lista de diccionarios para facilidad
         resultados = []
         for frecuencia in frecuencias:
             resultados.append({
@@ -161,4 +157,31 @@ class ServiciosFrecuencia():
             })
 
         return resultados
+    
   
+    
+    def obtener_frecuencias_lista(id_paciente):
+        frecuencias = db.session.query(
+            Frecuencia.id_frecuencia,
+            Frecuencia.ritmo,
+            Frecuencia.valor,
+            Frecuencia.fecha,
+            Clasificacion.nombre,
+            Clasificacion.id_clasificacion
+        ).join(Clasificacion, Frecuencia.id_clasificacion == Clasificacion.id_clasificacion) \
+        .filter(Frecuencia.id_paciente == id_paciente) \
+        .order_by(desc(Frecuencia.fecha)) 
+
+     
+        resultados = []
+        for frecuencia in frecuencias:
+            resultados.append({
+                'id_frecuencia': frecuencia.id_frecuencia,
+                'ritmo': frecuencia.ritmo,
+                'valor': frecuencia.valor,
+                'fecha': frecuencia.fecha,
+                'clasificacion': frecuencia.nombre,
+                'id_clasificacion': frecuencia.id_clasificacion
+            })
+
+        return resultados

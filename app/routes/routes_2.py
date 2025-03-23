@@ -88,20 +88,18 @@ def login_requerido(f):
     return check_login
 
 def obtener_estadisticas():
-    pacientes = ServiciosFrecuencia.obtener_todos()  # Obtenemos la lista de pacientes (diccionarios)
-    total_pacientes = len(pacientes) if pacientes else 0  # Número de pacientes
+    pacientes = ServiciosFrecuencia.obtener_todos()  
+    total_pacientes = len(pacientes) if pacientes else 0  
     print(pacientes)
-    
-    # Inicializamos los contadores
+
     normal = 0
     ladridos = 0
     bocinas = 0
     petardos = 0
 
-    for paciente in pacientes:  # Iteramos sobre la lista de pacientes (diccionarios)
-        if 'id_clasificacion' in paciente:  # Comprobamos si la clave 'id_clasificacion' existe
-            frecuencia = paciente['id_clasificacion']  # Accedemos al valor de id_clasificacion
-            # Comprobamos el valor de la clasificación y asignamos a los contadores
+    for paciente in pacientes:  
+        if 'id_clasificacion' in paciente:  
+            frecuencia = paciente['id_clasificacion'] 
             if frecuencia in [6, 4, 5]:
                 ladridos += 1
             elif frecuencia in [1, 2, 3]:
@@ -111,7 +109,7 @@ def obtener_estadisticas():
             else:
                 normal += 1
 
-    # Calculamos los porcentajes
+
     porcentaje_normal = (normal / total_pacientes) * 100 if total_pacientes else 0
     porcentaje_ladridos = (ladridos / total_pacientes) * 100 if total_pacientes else 0
     porcentaje_bocinas = (bocinas / total_pacientes) * 100 if total_pacientes else 0
@@ -122,7 +120,7 @@ def obtener_estadisticas():
         'porcentaje_ladridos': round(porcentaje_ladridos, 2),
         'porcentaje_bocinas': round(porcentaje_bocinas, 2),
         'porcentaje_petardos': round(porcentaje_petardos, 2),
-        'total_usuarios': len(ServiciosUsuario.obtener_todos()),  # Suponiendo que la cantidad de usuarios se obtiene así
+        'total_usuarios': len(ServiciosUsuario.obtener_todos()), 
         'total_pacientes': total_pacientes,
     }
 
@@ -184,11 +182,6 @@ def login():
     return render_template("login.html") 
 
  
-
-
-
- 
-
 @routes.route("/cerrar_sesion", methods=["POST"])
 def cerrar_sesion():
     try:
@@ -198,19 +191,22 @@ def cerrar_sesion():
     except Exception as e:
         return jsonify({"mensaje": f"Error en el cierre de sesión: {str(e)}"}), 500
 
+from werkzeug.security import check_password_hash
+
 @routes.route("/verificar_login", methods=["POST"])
 def verificar_login():
     try:
         datos = request.get_json()
         correo = datos.get("correo")
         password = datos.get("password")
-        
+        print(correo)
+        print(password)
         if not correo or not password:
             return jsonify({"mensaje": "Faltan datos"}), 400
- 
+
         usuario = ServiciosUsuario.obtener_por_correo(correo)
 
-        if not usuario:
+        if not usuario or not check_password_hash(usuario['password'], password):
             return jsonify({"mensaje": "Correo o contraseña incorrectos"}), 401
         
         session['nombre'] = usuario['nombre']  
@@ -218,14 +214,14 @@ def verificar_login():
         session['correo'] = usuario['correo'] 
         session['rol'] = usuario['id_rol']  
         inicio_rol = usuario['id_rol']  
-        if inicio_rol ==1:
+        
+        if inicio_rol == 1:
             return jsonify({"mensaje": "Inicio de sesión exitoso", "redirect": "/dashboard"}), 200
         else:
             return jsonify({"mensaje": "Inicio de sesión exitoso", "redirect": "/pacientes_empleado"}), 200
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"mensaje": "Error en el inicio de sesión"}), 500
-
+        return jsonify({"mensaje": f"Error en el inicio de sesión: {str(e)}"}), 500
 
 
 # ------------------- USUARIOS -------------------
@@ -265,21 +261,17 @@ def agregar_usuario():
     password = datos.get("password")
     id_rol = datos.get("rol")
 
-    # Validar formato de correo
     if not re.match(r"[^@]+@[^@]+\.[^@]+", correo):
         return jsonify({"mensaje": "Correo electrónico inválido"}), 400
 
-    # Validar si el correo ya existe
     usuario_existente_correo = ServiciosUsuario.obtener_por_correo(correo)
     if usuario_existente_correo:
         return jsonify({"mensaje": "Ya existe un usuario registrado con ese correo"}), 400
 
-    # Validar si el carnet ya existe
     usuario_existente_carnet = ServiciosUsuario.obtener_por_carnet(carnet)
     if usuario_existente_carnet:
         return jsonify({"mensaje": "Ya existe un usuario registrado con ese carnet"}), 400
 
-    # Si todo está bien, crear el nuevo usuario
     usuario_nuevo = ServiciosUsuario.crear(nombre, correo, carnet, telefono, password, id_rol)
     if usuario_nuevo:
         return jsonify({"mensaje": "Usuario agregado con éxito", "redirect": "/usuarios"}), 200
@@ -301,11 +293,7 @@ def crear_usuario_app():
 
         hoy = datetime.today()
 
-        # Restar los años de la edad a la fecha de hoy
         fecha_nacimiento = hoy.replace(year=hoy.year - edad)
-
-        # Verificar si ya pasó el cumpleaños este año
-        # Si la fecha de nacimiento es después de la fecha actual, restamos un año adicional
         if hoy.month < fecha_nacimiento.month or (hoy.month == fecha_nacimiento.month and hoy.day < fecha_nacimiento.day):
             fecha_nacimiento = fecha_nacimiento.replace(year=hoy.year - edad - 1)
 
@@ -315,22 +303,6 @@ def crear_usuario_app():
 
         
 
-        '''if not re.match(r"[^@]+@[^@]+\.[^@]+", correo):    
-            return jsonify({"mensaje": "Correo electrónico inválido"}), 400
-
-        # Generar el hash de la contraseña antes de almacenarla
-        
-        usuario_nuevo = ServiciosUsuario.crear(nombre, correo, carnet, telefono, password, id_rol)'''
-
-        # Insertar el nuevo usuario con la contraseña hasheada
-        '''cursor.execute(
-            """
-            INSERT INTO usuario (nombre, correo, carnet, telefono, password, id_rol) 
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """, 
-            (nombre, correo, carnet, telefono, password, id_rol)
-        )
-        db.commit()'''
 
         if paciente:
 
@@ -436,7 +408,6 @@ def pacientes():
 
     for paciente in pacientes_lista:
         fecha_nacimiento = paciente['fecha_nacimiento']
-        # Calcular la edad
         edad = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
         paciente['edad'] = edad  
         pacientes_con_edad.append(paciente)
@@ -470,7 +441,6 @@ def pacientes_empleado():
 
     for paciente in pacientes_lista:
         fecha_nacimiento = paciente['fecha_nacimiento']
-        # Calcular la edad
         edad = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
         paciente['edad'] = edad  
         pacientes_con_edad.append(paciente)
@@ -589,7 +559,6 @@ def cambiar_contrasena(id_usuario):
         return jsonify({"mensaje": "La nueva contraseña es requerida"}), 400
 
   
-    #contrasena_hasheada = generate_password_hash(nueva_contrasena)
 
     usuario = ServiciosUsuario.modificar_contrasena(id_usuario, nueva_contrasena)
 
@@ -618,7 +587,16 @@ def informes_empleado():
     nombre_usuario = session.get('nombre', 'Usuario Invitado')
     total_pacientes = session.get('total_pacientes')
     total_usuarios = session.get('total_usuarios')
-    return render_template("informes_empleado.html", nombre_usuario=nombre_usuario, total_pacientes= total_pacientes, total_usuarios=total_usuarios)
+    id_encargado = session.get('usuario_id')
+    paciente = ServiciosPaciente.obtener_pacientes_con_encargado_empleado(id_encargado)
+    paciente = paciente[0]
+    id_paciente= paciente['id_paciente']
+    nombre_paciente= paciente['nombre']
+    carnet_paciente= paciente['carnet']
+    
+    frecuencias = ServiciosFrecuencia.obtener_frecuencias_lista(id_paciente)
+    
+    return render_template("informes_empleado.html",nombre_paciente=nombre_paciente, carnet_paciente=carnet_paciente, frecuencias=frecuencias, nombre_usuario=nombre_usuario, total_pacientes= total_pacientes, total_usuarios=total_usuarios)
  
 import locale
  
@@ -685,7 +663,11 @@ def reportes_empleado():
     total_pacientes = session.get('total_pacientes')
     total_usuarios = session.get('total_usuarios')
     nombre_usuario = session.get('nombre', 'Usuario Invitado')
-    return render_template("reportes_empleado.html", nombre_usuario=nombre_usuario, total_pacientes=total_pacientes, total_usuarios=total_usuarios)
+    id_encargado = session.get('usuario_id')
+    paciente = ServiciosPaciente.obtener_pacientes_con_encargado_empleado(id_encargado)
+    paciente = paciente[0]
+    id_paciente= paciente['carnet']
+    return render_template("reportes_empleado.html", id_paciente=id_paciente, nombre_usuario=nombre_usuario, total_pacientes=total_pacientes, total_usuarios=total_usuarios)
  
 
 @routes.route('/generar_reporte_mensual', methods=['POST'])
@@ -712,7 +694,6 @@ def generar_reporte_mensual():
     fecha_actual = datetime.now()
     meses = [(fecha_actual + timedelta(days=30 * i)).strftime("%Y-%m") for i in range(4)]
     
-    # Se ajusta para contar los valores y calcular el promedio posteriormente
     data = {mes: {"bocinas": {"suma": 0, "contador": 0},
                   "ladridos": {"suma": 0, "contador": 0},
                   "petardos": {"suma": 0, "contador": 0}} for mes in meses}
@@ -739,13 +720,11 @@ def generar_reporte_mensual():
             continue
         
         if period in data:
-            # Acumulamos la suma de los valores y contamos la cantidad de registros
             data[period][categoria]["suma"] += valor
             data[period][categoria]["contador"] += 1
 
     resultado_final = []
     for mes in meses:
-        # Calculamos el promedio si el contador es mayor a cero
         bocinas_promedio = data[mes]["bocinas"]["suma"] / data[mes]["bocinas"]["contador"] if data[mes]["bocinas"]["contador"] > 0 else 0
         ladridos_promedio = data[mes]["ladridos"]["suma"] / data[mes]["ladridos"]["contador"] if data[mes]["ladridos"]["contador"] > 0 else 0
         petardos_promedio = data[mes]["petardos"]["suma"] / data[mes]["petardos"]["contador"] if data[mes]["petardos"]["contador"] > 0 else 0
@@ -1029,7 +1008,7 @@ def obtener_paciente():
     
     today = datetime.today()
     fecha_nacimiento = pacientes_lista['fecha_nacimiento']
-        # Calcular la edad
+
     edad = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
     pacientes_lista['edad'] = edad  
     cuerpo = {

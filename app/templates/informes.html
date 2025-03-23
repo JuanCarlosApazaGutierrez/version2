@@ -17,11 +17,7 @@
                             <a href="#generarReporte" data-toggle="modal"><button class="btn btn-success">Buscar Paciente <i class="icon-plus icon-white"></i></button></a>
                         </div>
                         <div class="btn-group pull-right" id="opcionesButtonGroup">
-                            <button data-toggle="dropdown" class="btn dropdown-toggle">Opciones <span class="caret"></span></button>
-                            <ul class="dropdown-menu">
-                                <li><a href="#" onclick="guardarComoPDF()">Guardar como PDF</a></li>
-                                <li><a href="#">Exportar en Excel</a></li>
-                            </ul>
+                             
                         </div>
                         <div class="btn-group pull-right" id="guardarButtonGroup" style="display:none;">
                             <button class="btn btn-primary" onclick="guardarComoPDF()">Guardar como PDF</button>
@@ -135,7 +131,6 @@
                     tbody.appendChild(tr);
                 });
 
-                // Guardar datos del encargado
                 encargadoNombre = data.nombre_encargado || "No disponible";
                 encargadoCorreo = data.correo_encargado || "No disponible";
                 encargadoCarnet = data.carnet_encargado || "No disponible";

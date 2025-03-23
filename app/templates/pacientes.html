@@ -12,13 +12,20 @@
                 <div class="span12">
                     <div class="table-toolbar">
                         <div class="btn-group">
-                            <a href="#agregarPaciente" data-toggle="modal"><button class="btn btn-success">Registrar Nuevo <i class="icon-plus icon-white"></i></button></a>
+                            <a href="#agregarPaciente" data-toggle="modal">
+                                <button class="btn btn-success">
+                                    Registrar Nuevo <i class="icon-plus icon-white"></i>
+                                </button>
+                            </a>
                         </div>
                         <div class="btn-group pull-right">
-                            <button data-toggle="dropdown" class="btn dropdown-toggle">Opciones <span class="caret"></span></button>
+                            <button data-toggle="dropdown" class="btn dropdown-toggle">
+                                Opciones <span class="caret"></span>
+                            </button>
                             <ul class="dropdown-menu">
-                                <li><a href="#">Guardar como PDF</a></li>
-                                <li><a href="#">Exportar en Excel</a></li>
+                                <!-- Se llaman las nuevas funciones -->
+                                <li><a href="#" onclick="guardarComoPDFPacientes()">Guardar como PDF</a></li>
+                                <li><a href="#" onclick="exportarExcelPacientes()">Exportar en Excel</a></li>
                             </ul>
                         </div>
                     </div>
@@ -43,7 +50,7 @@
                                 <td>{{ loop.index }}</td>
                                 <td>{{ paciente.nombre }}</td>
                                 <td>{{ paciente.carnet }}</td>
-                                <td>{{ paciente.edad }} años</td> 
+                                <td>{{ paciente.edad }} años</td>
                                 <td>{{ paciente.encargado }}</td>
                                 <td>{{ paciente.fecha_nacimiento }}</td>
                                 <td>{{ paciente.tasa }}</td>
@@ -53,12 +60,13 @@
                                     </span>
                                 </td>
                                 <td style="width:100px;">
-                                    <button class="btn btn-primary" onclick="editarPaciente({{ paciente.id_paciente }}, '{{ paciente.id_usuario }}', '{{ paciente.fecha_nacimiento }}', '{{ paciente.tasa }}', '{{ paciente.token_acceso }}', '{{ paciente.nombre }}', '{{ paciente.carnet }}' , '{{ paciente.diagnostico }}')"><i class="icon-edit icon-white"></i></button>
+                                    <button class="btn btn-primary" onclick="editarPaciente({{ paciente.id_paciente }}, '{{ paciente.id_usuario }}', '{{ paciente.fecha_nacimiento }}', '{{ paciente.tasa }}', '{{ paciente.token_acceso }}', '{{ paciente.nombre }}', '{{ paciente.carnet }}', '{{ paciente.diagnostico }}')">
+                                        <i class="icon-edit icon-white"></i>
+                                    </button>
                                     <button class="btn {% if paciente.activo %}btn-danger{% else %}btn-info{% endif %}" 
                                             onclick="confirmarEliminacion({{ paciente.id_paciente }})">
                                         <i class="icon-white {% if paciente.activo %} icon-trash{% else %}icon-check {% endif %}"></i>
                                     </button>
-                            
                                 </td>
                             </tr>
                             {% endfor %}
@@ -219,9 +227,81 @@
         <button class="btn" data-dismiss="modal">Cancelar</button>
     </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.21/jspdf.plugin.autotable.min.js"></script>
 
 <script>
-     
+    function guardarComoPDFPacientes() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.addImage('../static/img/logo_info.png', 'PNG', 15, 10, 50, 30);
+        doc.setFontSize(18);
+        doc.text('Lista de Pacientes', 105, 30, { align: 'center' });
+        const fechaActual = new Date();
+        const dia = ("0" + fechaActual.getDate()).slice(-2);
+        const mes = ("0" + (fechaActual.getMonth() + 1)).slice(-2);
+        const anio = fechaActual.getFullYear();
+        const fechaTexto = `${dia}/${mes}/${anio}`;
+        const lugar = "La Paz - Bolivia";
+        const headerInfo = [
+            ["Fecha:", fechaTexto, "Lugar:", lugar]
+        ];
+
+        doc.autoTable({
+            body: headerInfo,
+            startY: 45,
+            theme: 'grid',
+            styles: { fontSize: 10, cellPadding: 1.5 },
+            columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
+        });
+
+        const table = document.getElementById("example2");
+        const rows = table.rows;
+        let tableData = [];
+        for (let i = 0; i < rows.length; i++) {
+            let rowData = [];
+            for (let j = 0; j < rows[i].cells.length; j++) {
+                if (j < 7) {
+                    rowData.push(rows[i].cells[j].innerText);
+                }
+            }
+            tableData.push(rowData);
+        }
+
+        doc.autoTable({
+            head: [tableData[0]],
+            body: tableData.slice(1),
+            startY: doc.lastAutoTable.finalY + 5,
+            styles: { fontSize: 10, cellPadding: 2 }
+        });
+
+        doc.save('lista_pacientes.pdf');
+    }
+
+    function exportarExcelPacientes() {
+        const table = document.getElementById("example2");
+        const rows = table.rows;
+        let csv = [];
+        for (let i = 0; i < rows.length; i++) {
+            let row = [];
+            const cols = rows[i].querySelectorAll("td, th");
+            for (let j = 0; j < cols.length; j++) {
+                if (j < 7) {
+                    row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+                }
+            }
+            csv.push(row.join(","));
+        }
+        const csvString = csv.join("\n");
+        const filename = 'lista_pacientes.csv';
+        const link = document.createElement("a");
+        link.setAttribute("href", "data:text/csv;charset=utf-8," + encodeURIComponent(csvString));
+        link.setAttribute("download", filename);
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
     function agregarPaciente() {
         const id_encargado = document.getElementById("id_encargado").value;
         const nombre = document.getElementById("nombre").value;
@@ -230,14 +310,10 @@
         const fecha_nacimiento = document.getElementById("fecha_nacimiento").value;
         const tasa = document.getElementById("tasa").value;
         const token_acceso = document.getElementById("token_acceso").value;
-    
-        // Validar que todos los campos estén completos
         if (!id_encargado || !nombre || !carnet || !diagnostico || !fecha_nacimiento || !tasa || !token_acceso) {
             alert("Por favor, complete todos los campos.");
             return;
         }
-    
-        // Enviar los datos al backend para agregar el paciente
         fetch("/agregar_paciente", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -245,9 +321,9 @@
         })
         .then(response => response.json())
         .then(data => {
-            alert(data.mensaje); // Mostrar mensaje de éxito
+            alert(data.mensaje); 
             if (data.redirect) {
-                window.location.href = data.redirect; // Redirigir si es necesario
+                window.location.href = data.redirect; 
             }
         })
         .catch(error => console.error("Error:", error));
