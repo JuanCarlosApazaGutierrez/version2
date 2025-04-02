@@ -2,7 +2,8 @@ from app.models.sonido import Sonido
 from app.models.frecuencia import Frecuencia
 from app.serializer.serializadorUniversal import SerializadorUniversal
 from app.config.extensiones import db
-from sqlalchemy import func
+from sqlalchemy import func, desc
+from datetime import datetime
 
 class ServiciosSonido():
     def crear(paciente, sonido):
@@ -51,7 +52,14 @@ class ServiciosSonido():
         return respuesta
     
     def obtener_por_paciente_fecha(paciente, fecha):
-        registros = Sonido.query.filter_by(id_paciente = paciente, fecha = fecha)
+        fecha = str(fecha)
+        #fecha = datetime.strptime(fecha, '%Y-%m-%d')
+        registros = Sonido.query.filter(Sonido.id_paciente == paciente).filter(func.date(Sonido.fecha) == func.date(fecha))
+
+        print(fecha)
+        print(int(paciente))
+        print("imprimiendo registros: ")
+        print(registros)
 
         respuestas_mod = []
 
@@ -73,15 +81,15 @@ class ServiciosSonido():
         registro = db.session.query(Frecuencia).filter(
             Frecuencia.id_paciente == id_paciente,  # Filtro por rol
             Frecuencia.fecha < fecha_dada    # Filtro para que la fecha sea menor que la fecha dada
-        )
+        ).order_by(desc(Frecuencia.fecha)).first()
         '''.order_by(
             func.abs(func.julianday(Frecuencia.fecha) - func.julianday(fecha_dada))  # Ordenar por la diferencia absoluta con la fecha dada
         )'''
 
-        registro = SerializadorUniversal.serializar_lista(registro, ['id_frecuencia', 'id_clasificacion'])
+        registro = SerializadorUniversal.serializar_unico(registro, ['id_frecuencia', 'id_clasificacion', 'valor'])
         
         if registro:
-            registro = registro[len(registro)-1]
+            registro = registro#[len(registro)-1]
         else:
             registro = None  # Seleccionamos el primer registro más cercano
 

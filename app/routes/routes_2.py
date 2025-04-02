@@ -8,7 +8,7 @@ from app.services.serviciosSonido import ServiciosSonido
 from app.services.serviciosUsuario import ServiciosUsuario
 #
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, make_response
  
 #from app.routes.conexion import db, cursor
 from flask import Flask, request, jsonify
@@ -21,7 +21,7 @@ import re
 routes = Blueprint("routes", __name__)
 
 from functools import wraps
-from flask import redirect, url_for, session
+from flask import redirect, url_for, session, send_file
 import requests
 import os
 import firebase_admin
@@ -44,38 +44,63 @@ def _get_access_token():
 
 FCM_URL = "https://fcm.googleapis.com/v1/projects/freqcard/messages:send"
 
-def send_fcm_notification(device_token, title, body, data=None):
+def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True):
     headers = {
         "Authorization": 'Bearer ' + _get_access_token(),
         "Content-Type": "application/json"
     }
-    
-    payload = {
-        "message": {
-            "token" : device_token,
-            "notification": {
-                "title": title,
-                "body": body
-            }#,
-            #"data": data or {}
-        }
-    }
+    # Se arma el mensaje base con el token
+    message = {"token": device_token}
+     
+    if normal:
+         # Enviar mensaje data-only para actualización en tiempo real
+         message["data"] = {
+             "heart_rate": str(frecuencia)
+         }
+    else:
+         # Enviar mensaje con notificación para alerta (frecuencia anormal)
+         message["notification"] = {
+             "title": title,
+             "body": body
+         }
+         # Si se desea, se puede incluir además el dato en el campo data
+         message["data"] = {
+             "heart_rate": str(frecuencia)
+         }
+    payload = {"message": message}
+     
+     
+    '''payload = {
+         "message": {
+             "token" : device_token,
+             "notification": {
+                 "title": title,
+                 "body": body
+             }#,
+             #"data": data or {}
+         }
+    }'''
     try:
-        response = requests.post(FCM_URL, headers=headers, json=payload)
-       
-        return response.json()
+         response = requests.post(FCM_URL, headers=headers, json=payload)
+         print('/*/*'*100)
+         print(response)
+         print(response.json())
+         return response.json()
     except requests.exceptions.RequestException as e:
-        
-        return {"error": "Error en la solicitud"}
-
+         # Captura cualquier error relacionado con la solicitud (como problemas de red o problemas con la URL)
+         print(f"Error en la solicitud: {e}")
+         return {"error": "Error en la solicitud"}
+ 
     except ValueError as e:
-       
-        return {"error": "Error al procesar la respuesta JSON"}
-
+         # Captura cualquier error relacionado con la conversión de la respuesta a JSON
+         print(f"Error al convertir la respuesta a JSON: {e}")
+         return {"error": "Error al procesar la respuesta JSON"}
+ 
     except Exception as e:
-       
-        return {"error": "Error inesperado"}
-
+         # Captura cualquier otro error no esperado
+         print(f"Ha ocurrido un error inesperado: {e}")
+         return {"error": "Error inesperado"}
+    
  
 
 from flask import Flask, session, redirect, url_for, jsonify
@@ -88,18 +113,20 @@ def login_requerido(f):
     return check_login
 
 def obtener_estadisticas():
-    pacientes = ServiciosFrecuencia.obtener_todos()  
-    total_pacientes = len(pacientes) if pacientes else 0  
+    pacientes = ServiciosFrecuencia.obtener_todos()  # Obtenemos la lista de pacientes (diccionarios)
+    total_pacientes = len(pacientes) if pacientes else 0  # Número de pacientes
     print(pacientes)
-
+    
+    # Inicializamos los contadores
     normal = 0
     ladridos = 0
     bocinas = 0
     petardos = 0
 
-    for paciente in pacientes:  
-        if 'id_clasificacion' in paciente:  
-            frecuencia = paciente['id_clasificacion'] 
+    for paciente in pacientes:  # Iteramos sobre la lista de pacientes (diccionarios)
+        if 'id_clasificacion' in paciente:  # Comprobamos si la clave 'id_clasificacion' existe
+            frecuencia = paciente['id_clasificacion']  # Accedemos al valor de id_clasificacion
+            # Comprobamos el valor de la clasificación y asignamos a los contadores
             if frecuencia in [6, 4, 5]:
                 ladridos += 1
             elif frecuencia in [1, 2, 3]:
@@ -109,7 +136,7 @@ def obtener_estadisticas():
             else:
                 normal += 1
 
-
+    # Calculamos los porcentajes
     porcentaje_normal = (normal / total_pacientes) * 100 if total_pacientes else 0
     porcentaje_ladridos = (ladridos / total_pacientes) * 100 if total_pacientes else 0
     porcentaje_bocinas = (bocinas / total_pacientes) * 100 if total_pacientes else 0
@@ -120,7 +147,7 @@ def obtener_estadisticas():
         'porcentaje_ladridos': round(porcentaje_ladridos, 2),
         'porcentaje_bocinas': round(porcentaje_bocinas, 2),
         'porcentaje_petardos': round(porcentaje_petardos, 2),
-        'total_usuarios': len(ServiciosUsuario.obtener_todos()), 
+        'total_usuarios': len(ServiciosUsuario.obtener_todos()),  # Suponiendo que la cantidad de usuarios se obtiene así
         'total_pacientes': total_pacientes,
     }
 
@@ -182,6 +209,11 @@ def login():
     return render_template("login.html") 
 
  
+
+
+
+ 
+
 @routes.route("/cerrar_sesion", methods=["POST"])
 def cerrar_sesion():
     try:
@@ -190,6 +222,7 @@ def cerrar_sesion():
 
     except Exception as e:
         return jsonify({"mensaje": f"Error en el cierre de sesión: {str(e)}"}), 500
+
 
 from werkzeug.security import check_password_hash
 
@@ -222,6 +255,7 @@ def verificar_login():
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"mensaje": f"Error en el inicio de sesión: {str(e)}"}), 500
+
 
 
 # ------------------- USUARIOS -------------------
@@ -261,17 +295,21 @@ def agregar_usuario():
     password = datos.get("password")
     id_rol = datos.get("rol")
 
+    # Validar formato de correo
     if not re.match(r"[^@]+@[^@]+\.[^@]+", correo):
         return jsonify({"mensaje": "Correo electrónico inválido"}), 400
 
+    # Validar si el correo ya existe
     usuario_existente_correo = ServiciosUsuario.obtener_por_correo(correo)
     if usuario_existente_correo:
         return jsonify({"mensaje": "Ya existe un usuario registrado con ese correo"}), 400
 
+    # Validar si el carnet ya existe
     usuario_existente_carnet = ServiciosUsuario.obtener_por_carnet(carnet)
     if usuario_existente_carnet:
         return jsonify({"mensaje": "Ya existe un usuario registrado con ese carnet"}), 400
 
+    # Si todo está bien, crear el nuevo usuario
     usuario_nuevo = ServiciosUsuario.crear(nombre, correo, carnet, telefono, password, id_rol)
     if usuario_nuevo:
         return jsonify({"mensaje": "Usuario agregado con éxito", "redirect": "/usuarios"}), 200
@@ -288,21 +326,47 @@ def crear_usuario_app():
         
         carnet = datos.get("id")
         nombre = datos.get("name")
-        edad = int(datos.get("age"))
-        telefono = datos.get("rate")
+        edad = datos.get("age")
+        nombreTutor = datos.get("rate")
+        carnetTutor = datos.get("nombreTutor")
+        telefonoTutor = datos.get("carnetTutor")
+        correoTutor = datos.get("telefonoTutor")
+        contrasena = datos.get("correoTutor")
+        rate = datos.get("contrasena")
 
         hoy = datetime.today()
 
-        fecha_nacimiento = hoy.replace(year=hoy.year - edad)
-        if hoy.month < fecha_nacimiento.month or (hoy.month == fecha_nacimiento.month and hoy.day < fecha_nacimiento.day):
-            fecha_nacimiento = fecha_nacimiento.replace(year=hoy.year - edad - 1)
+        # Restar los años de la edad a la fecha de hoy
+        #fecha_nacimiento = hoy.replace(year=hoy.year - edad)
 
-        fecha_nacimiento = fecha_nacimiento.strftime('%Y-%m-%d')
+        # Verificar si ya pasó el cumpleaños este año
+        # Si la fecha de nacimiento es después de la fecha actual, restamos un año adicional
+        #if hoy.month < fecha_nacimiento.month or (hoy.month == fecha_nacimiento.month and hoy.day < fecha_nacimiento.day):
+        #    fecha_nacimiento = fecha_nacimiento.replace(year=hoy.year - edad - 1)
 
-        paciente = ServiciosPaciente.crear(1, fecha_nacimiento, 0, nombre, carnet)
+        #fecha_nacimiento = fecha_nacimiento.strftime('%Y-%m-%d')
+
+        #paciente = ServiciosPaciente.crear(1, fecha_nacimiento, 0, nombre, carnet)
+
+        fecha_nacimiento = datetime.strptime(edad, "%d/%m/%Y")
+        fecha_nacimiento = fecha_nacimiento.strftime("%Y-%m-%d")
+ 
+        print(nombreTutor)
+        print(correoTutor)
+        print(carnetTutor)
+        print(telefonoTutor)
+        print(contrasena)
+         
+ 
+        usuario_nuevo = ServiciosUsuario.crear(nombreTutor, correoTutor, carnetTutor, telefonoTutor, contrasena, 2)
+ 
+        usuario_tutor = ServiciosUsuario.obtener_por_carnet(carnetTutor)
+ 
+        id_usuario = usuario_tutor['id_usuario']
+ 
+        paciente = ServiciosPaciente.crear(id_usuario, fecha_nacimiento, 0, nombre, carnet)
 
         
-
 
         if paciente:
 
@@ -408,6 +472,7 @@ def pacientes():
 
     for paciente in pacientes_lista:
         fecha_nacimiento = paciente['fecha_nacimiento']
+        # Calcular la edad
         edad = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
         paciente['edad'] = edad  
         pacientes_con_edad.append(paciente)
@@ -441,6 +506,7 @@ def pacientes_empleado():
 
     for paciente in pacientes_lista:
         fecha_nacimiento = paciente['fecha_nacimiento']
+        # Calcular la edad
         edad = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
         paciente['edad'] = edad  
         pacientes_con_edad.append(paciente)
@@ -457,7 +523,7 @@ def agregar_paciente():
     datos = request.get_json()
     id_encargado = datos.get("id_encargado")
     fecha_nacimiento = datos.get("fecha_nacimiento")
-    tasa = datos.get("tasa")
+    tasa = "0"
     token_acceso = datos.get("token_acceso")   
     nombre = datos.get("nombre") 
     carnet = datos.get("carnet") 
@@ -559,6 +625,7 @@ def cambiar_contrasena(id_usuario):
         return jsonify({"mensaje": "La nueva contraseña es requerida"}), 400
 
   
+    #contrasena_hasheada = generate_password_hash(nueva_contrasena)
 
     usuario = ServiciosUsuario.modificar_contrasena(id_usuario, nueva_contrasena)
 
@@ -587,15 +654,17 @@ def informes_empleado():
     nombre_usuario = session.get('nombre', 'Usuario Invitado')
     total_pacientes = session.get('total_pacientes')
     total_usuarios = session.get('total_usuarios')
+    #return render_template("informes_empleado.html", nombre_usuario=nombre_usuario, total_pacientes= total_pacientes, total_usuarios=total_usuarios)
+        
     id_encargado = session.get('usuario_id')
     paciente = ServiciosPaciente.obtener_pacientes_con_encargado_empleado(id_encargado)
     paciente = paciente[0]
     id_paciente= paciente['id_paciente']
     nombre_paciente= paciente['nombre']
     carnet_paciente= paciente['carnet']
-    
+     
     frecuencias = ServiciosFrecuencia.obtener_frecuencias_lista(id_paciente)
-    
+     
     return render_template("informes_empleado.html",nombre_paciente=nombre_paciente, carnet_paciente=carnet_paciente, frecuencias=frecuencias, nombre_usuario=nombre_usuario, total_pacientes= total_pacientes, total_usuarios=total_usuarios)
  
 import locale
@@ -663,6 +732,7 @@ def reportes_empleado():
     total_pacientes = session.get('total_pacientes')
     total_usuarios = session.get('total_usuarios')
     nombre_usuario = session.get('nombre', 'Usuario Invitado')
+    #return render_template("reportes_empleado.html", nombre_usuario=nombre_usuario, total_pacientes=total_pacientes, total_usuarios=total_usuarios)
     id_encargado = session.get('usuario_id')
     paciente = ServiciosPaciente.obtener_pacientes_con_encargado_empleado(id_encargado)
     paciente = paciente[0]
@@ -694,6 +764,7 @@ def generar_reporte_mensual():
     fecha_actual = datetime.now()
     meses = [(fecha_actual + timedelta(days=30 * i)).strftime("%Y-%m") for i in range(4)]
     
+    # Se ajusta para contar los valores y calcular el promedio posteriormente
     data = {mes: {"bocinas": {"suma": 0, "contador": 0},
                   "ladridos": {"suma": 0, "contador": 0},
                   "petardos": {"suma": 0, "contador": 0}} for mes in meses}
@@ -720,11 +791,13 @@ def generar_reporte_mensual():
             continue
         
         if period in data:
+            # Acumulamos la suma de los valores y contamos la cantidad de registros
             data[period][categoria]["suma"] += valor
             data[period][categoria]["contador"] += 1
 
     resultado_final = []
     for mes in meses:
+        # Calculamos el promedio si el contador es mayor a cero
         bocinas_promedio = data[mes]["bocinas"]["suma"] / data[mes]["bocinas"]["contador"] if data[mes]["bocinas"]["contador"] > 0 else 0
         ladridos_promedio = data[mes]["ladridos"]["suma"] / data[mes]["ladridos"]["contador"] if data[mes]["ladridos"]["contador"] > 0 else 0
         petardos_promedio = data[mes]["petardos"]["suma"] / data[mes]["petardos"]["contador"] if data[mes]["petardos"]["contador"] > 0 else 0
@@ -832,7 +905,7 @@ def set_latido():
     
     #date_object = datetime.strptime(fecha, "%a %b %d %H:%M:%S GMT%z %Y")
 
-    paciente = ServiciosPaciente.obtener_por_carnet(id_user)
+    paciente = ServiciosPaciente.obtener_por_id(id_user)
     id_pac = paciente['id_paciente']
 
     frecuencia = ServiciosFrecuencia.crear(id_pac, 0, 10, latido)
@@ -843,7 +916,7 @@ def set_latido():
     """, (id_user, latido,))
     db.commit()'''
 
-    if latido >=100.0:
+    if latido >=115.0:
 
         id_enc = paciente['id_encargado']
 
@@ -860,10 +933,17 @@ def set_latido():
           
             titulo = "Frecuencia Alta Detectada"
             cuerpo = f"Frecuencia detectada de {latido} bpm"
-            result = send_fcm_notification(token_user, titulo, cuerpo)
+            result = send_fcm_notification(token_user, titulo, cuerpo, latido, False)
             return jsonify(result), 200
         else:
             return jsonify({'message':'No hay token'}), 400
+    else:         
+        id_enc = paciente['id_encargado']
+        usuario = ServiciosUsuario.obtener_id(id_enc)
+        if usuario:
+            token_user = usuario['token']
+            result = send_fcm_notification(token_user, '', '', latido, True)
+            return jsonify(result), 200
 
 
 
@@ -896,7 +976,7 @@ def send_not():
         titulo = title
         cuerpo = description
         result = ''
-        result = send_fcm_notification(token_user, titulo, cuerpo)
+        result = send_fcm_notification(token_user, titulo, cuerpo, 0, True)
         return jsonify(result), 200
     else:
         return jsonify({'message':'No hay token'}), 200
@@ -954,11 +1034,14 @@ def set_sonido():
 
     sonid = ServiciosSonido.crear(id_user, sonido)
 
+    freq_cerc = 0
+
     if sonid:
         fecha_sonido = sonid.fecha
         frecuencia_cercana = ServiciosSonido.buscar_registro_cercano(fecha_sonido, id_user)
         if frecuencia_cercana:
             id_frecuecia = frecuencia_cercana['id_frecuencia']
+            freq_cerc = int(round(float(frecuencia_cercana['valor'])))
             resultado = ServiciosFrecuencia.modificar(id_frecuecia, clasificacion)
 
 
@@ -985,8 +1068,8 @@ def set_sonido():
         token_user = usuario['token']
         
         titulo = "Ruido Molesto Detectado"
-        cuerpo = f"Alerta de {sonido}, cerca del paciente"
-        result = send_fcm_notification(token_user, titulo, cuerpo)
+        cuerpo = f"Alerta de {sonido} cerca del paciente, frecuencia cardiaca de {freq_cerc}bpm"
+        result = send_fcm_notification(token_user, titulo, cuerpo, freq_cerc, False)
         return jsonify(result), 200
     else:
         return jsonify({'message':'No hay token'}), 200
@@ -1001,6 +1084,10 @@ def obtener_paciente():
 
     pacientes_lista = ServiciosPaciente.obtener_por_carnet(id_usuario)
 
+    id_tutor = pacientes_lista['id_encargado']
+ 
+    tutor = ServiciosUsuario.obtener_id(id_tutor)
+
     '''cursor.execute("""
         SELECT * FROM paciente WHERE paciente.carnet = %s
     """, (id_usuario, ))
@@ -1008,14 +1095,356 @@ def obtener_paciente():
     
     today = datetime.today()
     fecha_nacimiento = pacientes_lista['fecha_nacimiento']
-
+        # Calcular la edad
     edad = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
     pacientes_lista['edad'] = edad  
     cuerpo = {
         'id': pacientes_lista['id_paciente'],
         'age' : pacientes_lista['edad'],
         'name' : pacientes_lista['nombre'],
-        'rate' : pacientes_lista['carnet']
+        'rate' : pacientes_lista['carnet'],
+        'carnet': pacientes_lista['carnet'],
+        'fecha_nacimiento': pacientes_lista['fecha_nacimiento'].strftime("%d/%m/%Y")
     }
 
     return jsonify({'results' : [cuerpo]})
+
+
+
+
+
+import matplotlib
+matplotlib.use('Agg')  # Usa el backend no interactivo
+import io
+import os
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from datetime import datetime
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+
+
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.pagesizes import letter
+
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.lineplots import LinePlot
+from reportlab.graphics.charts.axes import CategoryAxis, ValueAxis
+from reportlab.platypus import SimpleDocTemplate
+import queue
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Image as RLImage, Paragraph
+from io import BytesIO
+@routes.route('/generate_pdf', methods=['GET'])
+def generate_pdf():
+    id_paciente = request.args.get("id_paciente") # es ID no carnet
+    print(id_paciente)
+
+    id_pac_aux = id_paciente.find('?')
+    id_pac_aux = str(id_pac_aux)[0:id_pac_aux]
+    print(id_pac_aux)
+
+    paciente = ServiciosPaciente.obtener_por_id(id_paciente)
+
+    id_tutor = paciente['id_encargado']
+
+    tutor = ServiciosUsuario.obtener_id(id_tutor)
+
+    fecha_actual = datetime.now()
+    #fecha_actual = fecha_actual - timedelta(days=3)
+    fecha_actual = fecha_actual.strftime("%Y-%m-%d")
+    print(fecha_actual)
+
+    frecuencias = ServiciosFrecuencia.obtener_frecuencias_por_paciente_y_fecha(id_paciente, fecha_actual)
+    sonidos = ServiciosSonido.obtener_por_paciente_fecha(id_paciente, fecha_actual)
+
+
+
+    fechas_h = []
+    frecuencias_h = []
+    if frecuencias:
+        for frec in frecuencias:
+            fecha_ac = frec['fecha'].strftime("%Y-%m-%d %H:%M:%S")
+            #fecha_ac = fecha_ac.split(' ')[1]
+            fecha_ac = datetime.strptime(fecha_ac, "%Y-%m-%d %H:%M:%S")
+            fechas_h.append(fecha_ac)
+
+            frecuencias_h.append(float(frec['valor']))
+    
+
+    
+    fig, ax = plt.subplots()  # Crea un único eje
+    ax.plot(fechas_h, frecuencias_h, marker='o', linestyle='-')
+    ax.set_xlabel("Tiempo (HH:MM:SS)")
+    ax.set_ylabel("Frecuencia Cardiaca (bpm)")
+    ax.set_title("Frecuencia Cardiaca a lo largo del tiempo")
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+    fig.autofmt_xdate()  # Rota las etiquetas del eje x para mejor visualización
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='PNG')
+    plt.close(fig)
+    buf.seek(0)
+    imagen_grafica = RLImage(buf, width=500, height=250)
+    #imagen = ImageReader(buf)
+
+
+    #print(f"id_paciente: {id_paciente}")
+    # Crea un buffer en memoria para el PDF
+
+
+
+    buffer = BytesIO()
+
+
+    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    elementos = []
+
+    estilos = getSampleStyleSheet()
+    estilo_titulo = ParagraphStyle('Titulo', fontSize=18, alignment=1, fontName="Helvetica-Bold", underline=True)
+    estilo_subtitulo = ParagraphStyle('Subtitulo', fontSize=10, alignment=0)  # Para el nombre de usuario y fecha
+    estilo_tabla_paragrah = ParagraphStyle('Normala', fontSize=7, alignment=0)
+    estilo_datos = estilos['Normal']
+
+    logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
+    #print(logo_direccion)
+
+    # Agregar logo del hospital
+    logo = "logo.png"  # Ruta al logo
+    imagen_logo = Image(logo_direccion, 2 * inch, 1 * inch)  # Ajustar el tamaño del logo
+    #imagen_logo.hAlign = 'LEFT'
+    #elementos.append(imagen_logo)
+
+
+    fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generado_por = Paragraph(f"<b>Fecha de generación:</b> {fecha_actual}", estilo_subtitulo)
+    #generado_por = Paragraph(f"<b>Generado por:</b> {nombre_usuario}", estilo_subtitulo)
+    #generado_por = f"<b>Generado por:</b> {nombre_usuario}"
+
+    #elementos.append(generado_por)
+    #tabla_encabezado = Table([[imagen_logo, generado_por]], colWidths=[4 * inch, 4 * inch])
+    #elementos.append(tabla_encabezado)
+    def add_header(canvas, doc):
+        width, height = letter
+        imagen_logo.drawOn(canvas, (0.5*inch), height - (0.5*inch) - imagen_logo.drawHeight)
+        #tabla_encabezado.drawOn(canvas, (0.5*inch), height - (0.5*inch) - imagen_logo.drawHeight)
+            
+        # Obtener el ancho del texto
+        #ancho_texto = canvas.stringWidth(generado_por, "Helvetica", 12)
+            
+        # Posicionar el texto a una pulgada del margen derecho
+        posicion_texto_x = (0.3*inch)
+        posicion_texto_y = (0.3*inch)
+        generado_por.wrapOn(canvas, width, height)
+            
+        # Dibujar el texto
+        generado_por.drawOn(canvas, posicion_texto_x, posicion_texto_y)
+        #canvas.drawString(posicion_texto_x, posicion_texto_y, generado_por)
+
+    # Espacio entre elementos
+    elementos.append(Spacer(1, 12))
+
+    # Título del documento centrado y subrayado
+    titulo = Paragraph("<u>Informe del Paciente</u>", estilo_titulo)
+    elementos.append(titulo)
+
+    # Espacio antes de los datos personales
+    elementos.append(Spacer(1, 20))
+
+    datos_paciente = Table([[Paragraph(f"<b>Nombres y Apellidos del Paciente:</b> {paciente['nombre']}", estilo_datos), '', ''],
+                            [Paragraph(f"<b>Carnet:</b> {paciente['carnet']}", estilo_datos), Paragraph(f"<b>Fecha de Nacimiento:</b> {paciente['fecha_nacimiento']}", estilo_datos), Paragraph(f"<b></b>", estilo_datos)],
+                            [Paragraph(f"<b>Nombres Tutor:</b> {tutor['nombre']}", estilo_datos), Paragraph(f"<b>Carnet:</b> {tutor['carnet']}", estilo_datos), Paragraph(f"<b>Telefono:</b> {tutor['telefono']}", estilo_datos)]])
+
+    datos_paciente.setStyle(TableStyle([('ALIGNMENT', (0, 0), (-1, -1), 'LEFT'),
+                                        ('SPAN',(0,0),(2,0)),]))
+    #nombres_paciente = Paragraph(f"<b>Nombres y Apellidos del Paciente:</b> {hoja['nombres']} {hoja['apellido_paterno']} {hoja['apellido_materno']}", estilo_datos)
+       
+    #elementos.append(nombres_paciente)
+    elementos.append(datos_paciente)
+
+    # Espacio antes de la tabla
+    elementos.append(Spacer(1, 20))
+
+    clasificaciones = ServiciosClasificacion.obtener_todos()
+    #print(clasificaciones)
+
+    cabecera = ['Fecha y Hora', 'Frecuencia', 'Sonido']
+
+    tabla = []
+    tabla.append(cabecera)
+
+    if frecuencias:
+        
+        for frec in frecuencias:
+            print(frec)
+            fila = []
+            fila.append(frec['fecha'])
+            fila.append(frec['valor'])
+            '''soni = ""
+            for clas in clasificaciones:
+                if frec['id_clasificacion']==clas['id_clasificacion']:
+                    soni = clas['nombre']
+                    break'''
+            
+            fila.append(frec['clasificacion'])
+            tabla.append(fila)
+    
+    cabecera = ['Fecha y Hora', 'Sonido']
+    tabla_son = []
+    tabla_son.append(cabecera)
+
+    if sonidos:
+        
+        for frec in sonidos:
+            fila = []
+            fila.append(frec['fecha'])
+            fila.append(frec['sonido'])
+            
+            tabla_son.append(fila)
+    else:
+        tabla_son.append(['Sin Sonidos Registrados', ''])
+    
+    style = TableStyle([
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),  # color de texto en la primera fila
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Alineación de texto (centrado)
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Negrita en la primera fila (encabezados)
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),  # Fuente normal para el resto
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),  # Padding en la primera fila
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Fondo gris para la primera fila
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Mostrar líneas de la tabla
+    ])
+    
+
+    elementos.append(Spacer(1, 20))
+    tabla_frecuencias = Table(tabla)
+    tabla_frecuencias.setStyle(style)
+    elementos.append(tabla_frecuencias)
+
+    elementos.append(Spacer(1, 20))
+    tabla_sonidos = Table(tabla_son)
+    tabla_sonidos.setStyle(style)
+    elementos.append(tabla_sonidos)
+
+    elementos.append(Spacer(1, 20))
+
+    elementos.append(imagen_grafica)
+
+
+    # Generar el PDF  ----------------  pdf.build(elementos)
+    pdf.build(elementos, onFirstPage=add_header, onLaterPages=add_header)
+
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name="informe.pdf", mimetype='application/pdf')
+
+    response = make_response(buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=report.pdf'
+    return response
+    return buffer
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer)
+    # Aquí defines el contenido del PDF
+    p.drawString(100, 750, "Este es tu reporte PDF generado con ReportLab")
+    p.drawString(100, 730, "¡Generado desde Flask!")
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+     
+    # Configura la respuesta con los headers adecuados para PDF
+    response = make_response(buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=report.pdf'
+    return response
+ 
+ 
+ 
+@routes.route("/user/modificar_usuario", methods=["POST"])
+def crear_modificar_app():
+     
+        datos = request.get_json()
+ 
+        print('/*/'*100)
+        print(datos)
+         
+        id_pac = datos.get("id")
+        carnet = datos.get("carnet")
+        nombre = datos.get("nombre")
+        edad = datos.get("fecha")         
+        '''nombreTutor = datos.get("rate")
+         carnetTutor = datos.get("nombreTutor")
+         telefonoTutor = datos.get("carnetTutor")
+         correoTutor = datos.get("telefonoTutor")
+         contrasena = datos.get("correoTutor")
+         rate = datos.get("contrasena")'''
+ 
+        hoy = datetime.today()
+ 
+        # Restar los años de la edad a la fecha de hoy
+        #fecha_nacimiento = hoy.replace(year=hoy.year - edad)
+ 
+        # Verificar si ya pasó el cumpleaños este año
+        # Si la fecha de nacimiento es después de la fecha actual, restamos un año adicional
+        #if hoy.month < fecha_nacimiento.month or (hoy.month == fecha_nacimiento.month and hoy.day < fecha_nacimiento.day):
+        #    fecha_nacimiento = fecha_nacimiento.replace(year=hoy.year - edad - 1)
+ 
+        #fecha_nacimiento = fecha_nacimiento.strftime('%Y-%m-%d')
+ 
+        fecha_nacimiento = datetime.strptime(edad, "%d/%m/%Y")
+        fecha_nacimiento = fecha_nacimiento.strftime("%Y-%m-%d")
+ 
+         
+         
+ 
+         
+ 
+ 
+ 
+        paciente = ServiciosPaciente.modificar(id=id_pac, encargado=None, nacimiento=fecha_nacimiento, tasa=0, nombre=nombre, carnet=carnet)
+ 
+         
+ 
+        '''if not re.match(r"[^@]+@[^@]+\.[^@]+", correo):    
+            return jsonify({"mensaje": "Correo electrónico inválido"}), 400
+ 
+        # Generar el hash de la contraseña antes de almacenarla
+         
+        usuario_nuevo = ServiciosUsuario.crear(nombre, correo, carnet, telefono, password, id_rol)'''
+ 
+        # Insertar el nuevo usuario con la contraseña hasheada
+        '''cursor.execute(
+             """
+             INSERT INTO usuario (nombre, correo, carnet, telefono, password, id_rol) 
+             VALUES (%s, %s, %s, %s, %s, %s)
+             """, 
+             (nombre, correo, carnet, telefono, password, id_rol)
+         )
+        db.commit()'''
+ 
+        if paciente:
+ 
+            return jsonify({"mensaje": "Usuario agregado con éxito", "redirect": "/usuarios"}), 200
+        else:
+            return jsonify({"mensaje": "Error al agregar usuario"}), 500
