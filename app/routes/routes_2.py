@@ -108,7 +108,7 @@ def login_requerido(f):
     @wraps(f)
     def check_login(*args, **kwargs):
         if "usuario_id" not in session:  
-            return redirect(url_for("login"))  
+            return redirect(url_for("routes.login"))  
         return f(*args, **kwargs)   
     return check_login
 
@@ -1448,3 +1448,33 @@ def crear_modificar_app():
             return jsonify({"mensaje": "Usuario agregado con éxito", "redirect": "/usuarios"}), 200
         else:
             return jsonify({"mensaje": "Error al agregar usuario"}), 500
+        
+
+@routes.route('/fechas_usos/<id>', methods=['GET'])
+def obtener_fechas_usos(id):
+
+    resultados = ServiciosFrecuencia.obtener_lista_fechas_recientes(id)
+
+    print(resultados)
+
+    return jsonify({'cuerpo': resultados})
+
+@routes.route("/informes_paciente", methods=['GET'])
+@login_requerido
+def informes_paciente():
+    nombre_usuario = session.get('nombre', 'Usuario Invitado')
+    total_pacientes = session.get('total_pacientes')
+    total_usuarios = session.get('total_usuarios')
+
+    
+
+    id_encargado = session.get('usuario_id')
+    paciente = ServiciosPaciente.obtener_pacientes_con_encargado_empleado(id_encargado)
+    paciente = paciente[0]
+    id_paciente= paciente['id_paciente']
+    nombre_paciente= paciente['nombre']
+    carnet_paciente= paciente['carnet']
+
+    resultados = ServiciosFrecuencia.obtener_lista_fechas_recientes(id_paciente)
+
+    return render_template("informes_paciente.html", nombre_usuario=nombre_usuario, total_pacientes= total_pacientes, total_usuarios=total_usuarios, fechas = resultados, carnet=carnet_paciente)

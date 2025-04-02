@@ -8,4 +8,4 @@ with app.app_context():
 
 if __name__ == "__main__":
     #app.run(host='192.168.0.5', port= 8080,debug=True)
-    app.run(host='192.168.0.7', port= 8080,debug=True)
+    app.run(host='192.168.0.5', port= 8080,debug=True)

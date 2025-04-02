@@ -1,9 +1,10 @@
 from app.models.frecuencia import Frecuencia
 from app.models.clasificacion import Clasificacion
+from app.models.paciente import Paciente
 from app.serializer.serializadorUniversal import SerializadorUniversal
 from app.config.extensiones import db
 from datetime import datetime
-from sqlalchemy import func, extract, desc
+from sqlalchemy import func, extract, desc, case
 
 class ServiciosFrecuencia():
     def crear(paciente, ritmo, clasificacion, valor, estado=None):
@@ -188,3 +189,32 @@ class ServiciosFrecuencia():
             })
  
         return resultados
+    
+    def obtener_lista_fechas_recientes(id_paciente):
+        paciente = Paciente.query.get(id_paciente)
+
+        id_pac = paciente.id_paciente
+
+        resultados = db.session.query(Frecuencia.fecha, func.count(Frecuencia.id_frecuencia).label('cantidad_registros'), func.sum(case((Frecuencia.id_clasificacion == 10, 1), else_=0)).label('cantidad_normal')).group_by(func.date(Frecuencia.fecha)).order_by(func.date(Frecuencia.fecha).desc()).all()
+
+        datos_req = ['fecha', 'cantidad_registros', 'cantidad_normal']
+
+        resultado = SerializadorUniversal.serializar_lista(datos=resultados, campos_requeridos=datos_req)
+
+        for fila in resultado:
+            cant_tot = int(fila['cantidad_registros'])
+            cant_nrm = int(fila['cantidad_normal'])
+            cant_alr = cant_tot - cant_nrm
+
+            porcentaje_alr = (cant_alr / cant_tot) * 100
+
+            porcentaje_alr = "{:.2f}".format(porcentaje_alr)
+
+            fila['porcentaje_alertas'] = porcentaje_alr
+
+            fila['fecha_m'] = fila['fecha'].strftime("%d/%m/%Y")
+            fila['fecha_v'] = fila['fecha'].strftime("%Y-%m-%d")
+
+
+
+        return resultado
