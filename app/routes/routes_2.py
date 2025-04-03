@@ -123,18 +123,20 @@ def obtener_estadisticas():
     bocinas = 0
     petardos = 0
 
-    for paciente in pacientes:  # Iteramos sobre la lista de pacientes (diccionarios)
-        if 'id_clasificacion' in paciente:  # Comprobamos si la clave 'id_clasificacion' existe
-            frecuencia = paciente['id_clasificacion']  # Accedemos al valor de id_clasificacion
-            # Comprobamos el valor de la clasificación y asignamos a los contadores
-            if frecuencia in [6, 4, 5]:
-                ladridos += 1
-            elif frecuencia in [1, 2, 3]:
-                bocinas += 1
-            elif frecuencia in [9, 8, 7]:
-                petardos += 1
-            else:
-                normal += 1
+    if pacientes:
+
+        for paciente in pacientes:  # Iteramos sobre la lista de pacientes (diccionarios)
+            if 'id_clasificacion' in paciente:  # Comprobamos si la clave 'id_clasificacion' existe
+                frecuencia = paciente['id_clasificacion']  # Accedemos al valor de id_clasificacion
+                # Comprobamos el valor de la clasificación y asignamos a los contadores
+                if frecuencia in [6, 4, 5]:
+                    ladridos += 1
+                elif frecuencia in [1, 2, 3]:
+                    bocinas += 1
+                elif frecuencia in [9, 8, 7]:
+                    petardos += 1
+                else:
+                    normal += 1
 
     # Calculamos los porcentajes
     porcentaje_normal = (normal / total_pacientes) * 100 if total_pacientes else 0
