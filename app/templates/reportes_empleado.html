@@ -22,6 +22,9 @@
         <div class="block">
             <div class="navbar navbar-inner block-header">
                 <div class="muted pull-left"><h4>MONITOREO DIARIO</h4></div>
+                <div class="pull-right">
+                    <a href="#graficaDia" data-toggle="modal"><button class="btn btn-success">Buscar datos del Paciente <i class="icon-search icon-white"></i></button></a>
+                </div>
             </div>
             <div class="block-content collapse in">
                 <div class="span12">
@@ -32,15 +35,39 @@
     </div>
 
 </div>
+<div id="graficaDia" class="modal hide">
+    <div class="modal-header">
+        <button data-dismiss="modal" class="close" type="button">&times;</button>
+        <h3>Buscar Eventos Diarios</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal" id="formGraficaDia">
+            <fieldset>
+                <br/>
+                <div class="control-group">
+                    
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="paciente_dia" type="hidden" value="{{ id_paciente }}">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="fecha_dia">Fecha</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="fecha_dia" type="date" value="">
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-primary" type="button" onclick="generarReporteDiario()">Generar</button>
+        <button class="btn" data-dismiss="modal">Cancelar</button>
+    </div>
+</div>
 
 
 <form id="formGraficaMes" style="display:none;">
     <input type="hidden" id="paciente" value="{{ id_paciente }}">
-</form>
-
-<form id="formGraficaDia" style="display:none;">
-    <input type="hidden" id="paciente_dia" value="{{ id_paciente }}">
-    <input type="hidden" id="fecha_dia">
 </form>
 
 <script src="../static/op3/vendors/jquery-1.9.1.min.js"></script>
@@ -55,7 +82,7 @@ $(document).ready(function () {
     $("#fecha_dia").val(hoy);
 
     generarReporteMensual();
-    generarReporteDiario();
+   
 });
 
 function generarReporteMensual() {
@@ -89,32 +116,27 @@ function generarReporteMensual() {
         }
     });
 }
-
 function generarReporteDiario() {
-    let paciente = $("#paciente_dia").val();
-    let fecha = $("#fecha_dia").val();
-    if (!paciente || !fecha) {
-        alert("Código de paciente o fecha faltante.");
+    var pacienteDia = $("#paciente_dia").val(); 
+    var fechaDia = $("#fecha_dia").val();   
+    if (!pacienteDia || !fechaDia) {
+        alert("Por favor ingrese el código de paciente y la fecha.");
         return;
     }
-
     $.ajax({
-        url: "/generar_reporte_diario",
+        url: "/generar_reporte_diario",   
         method: "POST",
         data: {
-            'paciente_dia': paciente,
-            'fecha_dia': fecha,
-            'csrfmiddlewaretoken': '{{ csrf_token }}'
+            'paciente_dia': pacienteDia,
+            'fecha_dia': fechaDia,
+            'csrfmiddlewaretoken': '{{ csrf_token }}'  
         },
-        success: function (response) {
-            console.log("Reporte diario:", response);
-            if(!response.frecuencias || response.frecuencias.length === 0) {
-                alert("No se encontraron datos para el reporte diario.");
-                return;
-            }
+        success: function(response) {
+            alert("Reporte diario generado con éxito.");
+            console.log(response); 
             Morris.Line({
                 element: 'hero-graph',
-                data: response.frecuencias,
+                data: response.frecuencias, 
                 xkey: 'period',
                 ykeys: ['bocinas', 'ladridos', 'petardos'],
                 labels: ['Bocinas', 'Ladridos', 'Petardos'],
@@ -123,9 +145,8 @@ function generarReporteDiario() {
                 hideHover: 'auto'
             });
         },
-        error: function (xhr, status, error) {
-            console.error("Error en reporte diario:", xhr.responseText);
-            alert("No se puede encontrar historial de frecuencia el dia de hoy");
+        error: function() {
+            alert("Hubo un error al generar el reporte.");
         }
     });
 }

@@ -39,7 +39,7 @@
                                 <th>Edad</th>
                                 <th>Encargado</th>
                                 <th>Fecha de Nacimiento</th>
-                                <th>Tasa</th>
+                                <th>Ultima FC <br/>Fecha y Hora</th>
                                 <th>Estado</th>
                                 <th>Opciones</th>
                             </tr>
@@ -53,7 +53,7 @@
                                 <td>{{ paciente.edad }} años</td>
                                 <td>{{ paciente.encargado }}</td>
                                 <td>{{ paciente.fecha_nacimiento }}</td>
-                                <td>{{ paciente.tasa }}</td>
+                                <td>{{ paciente.ultima_frecuencia.valor }}<br/>{{ paciente.ultima_frecuencia.fecha }}</td>
                                 <td>
                                     <span class="label {{ 'label-success' if paciente.activo else 'label-danger' }}">
                                         {{ 'Activo' if paciente.activo else 'Inactivo' }}

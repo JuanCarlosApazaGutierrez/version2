@@ -447,42 +447,54 @@ def eliminar_usuario(id_usuario):
 @login_requerido
 def pacientes():
     nombre_usuario = session.get('nombre', 'Usuario Invitado')
-  
     pacientes_lista = ServiciosPaciente.obtener_pacientes_con_encargado()
-
-    '''cursor.execute("""
-        SELECT p.id_paciente, p.fecha_nacimiento, p.frecuencias, p.tasa, p.token_acceso, p.activo, p.nombre, p.carnet, p.diagnostico,
-               u.nombre AS encargado, u.correo, u.telefono , u.id_usuario
-        FROM paciente p
-        JOIN usuario u ON p.id_encargado = u.id_usuario
-    """)
-    pacientes_lista = cursor.fetchall()  '''
-
     encargados_lista = ServiciosUsuario.obtener_usuarios_con_rol(2)
-
-    '''cursor.execute("""
-        SELECT u.id_usuario, u.nombre, u.correo, u.carnet, u.telefono, r.nombre AS rol
-        FROM usuario u
-        JOIN roles r ON u.id_rol = r.id_rol
-        WHERE u.id_rol = 2
-    """)
-    encargados_lista = cursor.fetchall()  '''
     pacientes_con_edad = []
     today = datetime.today()
 
+    frecuencias = ServiciosFrecuencia.obtener_todos()
+    frecuencias_por_paciente = {}
+
+  
+    for frecuencia in frecuencias:
+        paciente_id = frecuencia['id_paciente']
+        fecha_frecuencia = frecuencia['fecha']
+
+        if paciente_id not in frecuencias_por_paciente or fecha_frecuencia > frecuencias_por_paciente[paciente_id]['fecha']:
+            frecuencias_por_paciente[paciente_id] = frecuencia
+
     for paciente in pacientes_lista:
         fecha_nacimiento = paciente['fecha_nacimiento']
-        # Calcular la edad
         edad = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
-        paciente['edad'] = edad  
+        paciente['edad'] = edad
+
+        # Añadir la última frecuencia registrada para el paciente
+        paciente_id = paciente['id_paciente']
+        ultima_frecuencia = frecuencias_por_paciente.get(paciente_id, None)
+
+        if ultima_frecuencia:
+            paciente['ultima_frecuencia'] = {
+                'ritmo': ultima_frecuencia['ritmo'],
+                'clasificacion': ultima_frecuencia['id_clasificacion'],
+                'valor': ultima_frecuencia['valor'],
+                'fecha': ultima_frecuencia['fecha']
+            }
+        else:
+            paciente['ultima_frecuencia'] = None
+
         pacientes_con_edad.append(paciente)
+
     total_pacientes = session.get('total_pacientes')
     total_usuarios = session.get('total_usuarios')
-
     username = session.get('username', 'Usuario Invitado')
-    return render_template("pacientes.html",nombre_usuario=nombre_usuario, pacientes=pacientes_con_edad, encargados=encargados_lista,username=username, total_pacientes= total_pacientes, total_usuarios=total_usuarios)
 
-
+    return render_template("pacientes.html", 
+                           nombre_usuario=nombre_usuario, 
+                           pacientes=pacientes_con_edad, 
+                           encargados=encargados_lista,
+                           username=username, 
+                           total_pacientes=total_pacientes, 
+                           total_usuarios=total_usuarios)
 
 
 @routes.route("/pacientes_empleado")
@@ -491,24 +503,46 @@ def pacientes_empleado():
     nombre_usuario = session.get('nombre', 'Usuario Invitado')
     id_encargado = session.get('usuario_id')
     pacientes_lista = ServiciosPaciente.obtener_pacientes_con_encargado_empleado(id_encargado)
- 
+    
     encargados_lista = ServiciosUsuario.obtener_usuarios_con_rol(2)
 
-    '''cursor.execute("""
-        SELECT u.id_usuario, u.nombre, u.correo, u.carnet, u.telefono, r.nombre AS rol
-        FROM usuario u
-        JOIN roles r ON u.id_rol = r.id_rol
-        WHERE u.id_rol = 2
-    """)
-    encargados_lista = cursor.fetchall()  '''
+ 
+    
+ 
     pacientes_con_edad = []
     today = datetime.today()
 
+    
+    frecuencias = ServiciosFrecuencia.obtener_todos()
+    frecuencias_por_paciente = {}
+
+  
+    for frecuencia in frecuencias:
+        paciente_id = frecuencia['id_paciente']
+        fecha_frecuencia = frecuencia['fecha']
+
+        if paciente_id not in frecuencias_por_paciente or fecha_frecuencia > frecuencias_por_paciente[paciente_id]['fecha']:
+            frecuencias_por_paciente[paciente_id] = frecuencia
+
     for paciente in pacientes_lista:
         fecha_nacimiento = paciente['fecha_nacimiento']
-        # Calcular la edad
         edad = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
-        paciente['edad'] = edad  
+        paciente['edad'] = edad
+
+        # Añadir la última frecuencia registrada para el paciente
+        paciente_id = paciente['id_paciente']
+        ultima_frecuencia = frecuencias_por_paciente.get(paciente_id, None)
+
+        if ultima_frecuencia:
+            paciente['ultima_frecuencia'] = {
+                'ritmo': ultima_frecuencia['ritmo'],
+                'clasificacion': ultima_frecuencia['id_clasificacion'],
+                'valor': ultima_frecuencia['valor'],
+                'fecha': ultima_frecuencia['fecha']
+            }
+        else:
+            paciente['ultima_frecuencia'] = None
+
         pacientes_con_edad.append(paciente)
     total_pacientes = session.get('total_pacientes')
     total_usuarios = session.get('total_usuarios')
@@ -1381,6 +1415,267 @@ def generate_pdf():
  
  
  
+@routes.route('/generate_pdf2', methods=['GET'])
+def generate_pdf2():
+    codigo = request.args.get("id_paciente") # es ID no carnet
+    print(codigo)
+
+    id_pac_aux = codigo.find('?')
+    id_pac_aux = str(id_pac_aux)[0:id_pac_aux]
+    print(id_pac_aux)
+
+    paciente = ServiciosPaciente.obtener_por_carnet(codigo)
+    id_paciente = paciente['id_paciente']
+    id_tutor = paciente['id_encargado']
+
+    tutor = ServiciosUsuario.obtener_id(id_tutor)
+
+    fecha_actual = datetime.now()
+    #fecha_actual = fecha_actual - timedelta(days=3)
+    fecha_actual = fecha_actual.strftime("%Y-%m-%d")
+    print(fecha_actual)
+
+    frecuencias = ServiciosFrecuencia.obtener_frecuencias_por_paciente_y_fecha(id_paciente, fecha_actual)
+    sonidos = ServiciosSonido.obtener_por_paciente_fecha(id_paciente, fecha_actual)
+
+
+
+    fechas_h = []
+    frecuencias_h = []
+    if frecuencias:
+        for frec in frecuencias:
+            fecha_ac = frec['fecha'].strftime("%Y-%m-%d %H:%M:%S")
+            #fecha_ac = fecha_ac.split(' ')[1]
+            fecha_ac = datetime.strptime(fecha_ac, "%Y-%m-%d %H:%M:%S")
+            fechas_h.append(fecha_ac)
+
+            frecuencias_h.append(float(frec['valor']))
+    
+
+    
+    fig, ax = plt.subplots()  # Crea un único eje
+    ax.plot(fechas_h, frecuencias_h, marker='o', linestyle='-')
+    ax.set_xlabel("Tiempo (HH:MM:SS)")
+    ax.set_ylabel("Frecuencia Cardiaca (bpm)")
+    ax.set_title("Frecuencia Cardiaca a lo largo del tiempo")
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+    fig.autofmt_xdate()  # Rota las etiquetas del eje x para mejor visualización
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='PNG')
+    plt.close(fig)
+    buf.seek(0)
+    imagen_grafica = RLImage(buf, width=500, height=250)
+    #imagen = ImageReader(buf)
+
+
+    #print(f"id_paciente: {id_paciente}")
+    # Crea un buffer en memoria para el PDF
+    
+     
+
+    buffer = BytesIO()
+
+
+    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    elementos = []
+
+    estilos = getSampleStyleSheet()
+    estilo_titulo = ParagraphStyle('Titulo', fontSize=18, alignment=1, fontName="Helvetica-Bold", underline=True)
+    estilo_subtitulo = ParagraphStyle('Subtitulo', fontSize=10, alignment=0)  # Para el nombre de usuario y fecha
+    estilo_tabla_paragrah = ParagraphStyle('Normala', fontSize=7, alignment=0)
+    estilo_datos = estilos['Normal']
+
+    logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
+    #print(logo_direccion)
+
+    # Agregar logo del hospital
+    logo = "logo.png"  # Ruta al logo
+    imagen_logo = Image(logo_direccion, 2 * inch, 1 * inch)  # Ajustar el tamaño del logo
+    #imagen_logo.hAlign = 'LEFT'
+    #elementos.append(imagen_logo)
+
+
+    fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generado_por = Paragraph(f"<b>Fecha de generación:</b> {fecha_actual}", estilo_subtitulo)
+    #generado_por = Paragraph(f"<b>Generado por:</b> {nombre_usuario}", estilo_subtitulo)
+    #generado_por = f"<b>Generado por:</b> {nombre_usuario}"
+
+    #elementos.append(generado_por)
+    #tabla_encabezado = Table([[imagen_logo, generado_por]], colWidths=[4 * inch, 4 * inch])
+    #elementos.append(tabla_encabezado)
+    def add_header(canvas, doc):
+        width, height = letter
+        imagen_logo.drawOn(canvas, (0.5*inch), height - (0.5*inch) - imagen_logo.drawHeight)
+        #tabla_encabezado.drawOn(canvas, (0.5*inch), height - (0.5*inch) - imagen_logo.drawHeight)
+            
+        # Obtener el ancho del texto
+        #ancho_texto = canvas.stringWidth(generado_por, "Helvetica", 12)
+            
+        # Posicionar el texto a una pulgada del margen derecho
+        posicion_texto_x = (0.3*inch)
+        posicion_texto_y = (0.3*inch)
+        generado_por.wrapOn(canvas, width, height)
+            
+        # Dibujar el texto
+        generado_por.drawOn(canvas, posicion_texto_x, posicion_texto_y)
+        #canvas.drawString(posicion_texto_x, posicion_texto_y, generado_por)
+
+    # Espacio entre elementos
+    elementos.append(Spacer(1, 12))
+
+    # Título del documento centrado y subrayado
+    titulo = Paragraph("<u>Informe del Paciente</u>", estilo_titulo)
+    elementos.append(titulo)
+
+    # Espacio antes de los datos personales
+    elementos.append(Spacer(1, 20))
+
+    datos_paciente = Table([[Paragraph(f"<b>Nombres y Apellidos del Paciente:</b> {paciente['nombre']}", estilo_datos), '', ''],
+                            [Paragraph(f"<b>Carnet:</b> {paciente['carnet']}", estilo_datos), Paragraph(f"<b>Fecha de Nacimiento:</b> {paciente['fecha_nacimiento']}", estilo_datos), Paragraph(f"<b></b>", estilo_datos)],
+                            [Paragraph(f"<b>Nombres Tutor:</b> {tutor['nombre']}", estilo_datos), Paragraph(f"<b>Carnet:</b> {tutor['carnet']}", estilo_datos), Paragraph(f"<b>Telefono:</b> {tutor['telefono']}", estilo_datos)]])
+
+    datos_paciente.setStyle(TableStyle([('ALIGNMENT', (0, 0), (-1, -1), 'LEFT'),
+                                        ('SPAN',(0,0),(2,0)),]))
+    #nombres_paciente = Paragraph(f"<b>Nombres y Apellidos del Paciente:</b> {hoja['nombres']} {hoja['apellido_paterno']} {hoja['apellido_materno']}", estilo_datos)
+       
+    #elementos.append(nombres_paciente)
+    elementos.append(datos_paciente)
+
+    # Espacio antes de la tabla
+    elementos.append(Spacer(1, 20))
+
+    clasificaciones = ServiciosClasificacion.obtener_todos()
+    #print(clasificaciones)
+
+    cabecera = ['Fecha y Hora', 'Frecuencia', 'Sonido']
+
+    tabla = []
+    tabla.append(cabecera)
+
+    if frecuencias:
+        
+        for frec in frecuencias:
+            print(frec)
+            fila = []
+            fila.append(frec['fecha'])
+            fila.append(frec['valor'])
+            '''soni = ""
+            for clas in clasificaciones:
+                if frec['id_clasificacion']==clas['id_clasificacion']:
+                    soni = clas['nombre']
+                    break'''
+            
+            fila.append(frec['clasificacion'])
+            tabla.append(fila)
+    
+    cabecera = ['Fecha y Hora', 'Sonido']
+    tabla_son = []
+    tabla_son.append(cabecera)
+
+    if sonidos:
+        
+        for frec in sonidos:
+            fila = []
+            fila.append(frec['fecha'])
+            fila.append(frec['sonido'])
+            
+            tabla_son.append(fila)
+    else:
+        tabla_son.append(['Sin Sonidos Registrados', ''])
+    
+    style = TableStyle([
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),  # color de texto en la primera fila
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Alineación de texto (centrado)
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Negrita en la primera fila (encabezados)
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),  # Fuente normal para el resto
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),  # Padding en la primera fila
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Fondo gris para la primera fila
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Mostrar líneas de la tabla
+    ])
+    
+
+    elementos.append(Spacer(1, 20))
+    tabla_frecuencias = Table(tabla)
+    tabla_frecuencias.setStyle(style)
+    elementos.append(tabla_frecuencias)
+
+    elementos.append(Spacer(1, 20))
+    tabla_sonidos = Table(tabla_son)
+    tabla_sonidos.setStyle(style)
+    elementos.append(tabla_sonidos)
+
+    elementos.append(Spacer(1, 20))
+
+    elementos.append(imagen_grafica)
+    elementos.append(Spacer(1, 20))
+    firmas = Table([
+        ['_____________________________', '_____________________________'],
+        ['Encargado o Padre', 'Encargado del Centro Psicolegria']
+    ])
+
+    firmas.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, 1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+    ]))
+
+    elementos.append(firmas)
+
+
+    # Generar el PDF  ----------------  pdf.build(elementos)
+    pdf.build(elementos, onFirstPage=add_header, onLaterPages=add_header)
+
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name="informe.pdf", mimetype='application/pdf')
+
+    response = make_response(buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=report.pdf'
+    return response
+    return buffer
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer)
+    # Aquí defines el contenido del PDF
+    p.drawString(100, 750, "Este es tu reporte PDF generado con ReportLab")
+    p.drawString(100, 730, "¡Generado desde Flask!")
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+     
+    # Configura la respuesta con los headers adecuados para PDF
+    response = make_response(buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=report.pdf'
+
+
+    elementos.append(Spacer(1, 40))
+
+   
+    return response
+ 
+ 
+  
+
 @routes.route("/user/modificar_usuario", methods=["POST"])
 def crear_modificar_app():
      

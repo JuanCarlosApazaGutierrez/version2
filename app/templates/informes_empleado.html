@@ -23,7 +23,7 @@
                         <div class="btn-group pull-right" id="opcionesButtonGroup">
                             <button data-toggle="dropdown" class="btn dropdown-toggle">Opciones <span class="caret"></span></button>
                             <ul class="dropdown-menu">
-                                <li><a href="#" onclick="guardarComoPDFPaciente()">Guardar como PDF</a></li>
+                                <li><a href="#" onclick="guardarComoPDF()">Guardar como PDF</a></li>
                                 <li><a href="#" onclick="exportarExcel()">Exportar en Excel</a></li>
                             </ul>
                         </div>
@@ -36,7 +36,7 @@
                                 <th>Fecha</th>
                                 <th>Ritmo</th>
                                 <th>Clasificacion</th>
-                                <th>Valor</th>
+                                <th>Frecuencia Cardiaca</th>
                             </tr>
                         </thead>
                         <tbody id="frecuenciaTableBody">
@@ -88,6 +88,25 @@
 </div>
 
 <script>
+    
+    function guardarComoPDF() {
+         
+        fetch(`/generate_pdf2?id_paciente={{ carnet_paciente }}`, {
+            method: 'GET'
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'informe_paciente.pdf';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(error => console.error('Error al generar el PDF:', error));
+    }
     function guardarComoPDFPaciente() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
