@@ -29,7 +29,7 @@ from google.oauth2 import service_account
 import google.auth.transport.requests
 
 
-services_account_file = os.path.join(os.getcwd(), 'app', 'routes', "freqcard-firebase-adminsdk-fbsvc-9423d81a63.json")
+services_account_file = os.path.join('var', 'www', 'sistema_cardiaco', 'app', 'routes', "freqcard-firebase-adminsdk-fbsvc-9423d81a63.json")
 #credentials = service_account.Credentials.from_service_account_file(services_account_file, scopes="https://www.googleapis.com/auth/cloud-plataform") # https://www.googleapis.com/auth/firebase.messaging
 #default_app = firebase_admin.initialize_app()
 
@@ -1489,7 +1489,7 @@ def generate_pdf2():
     estilo_tabla_paragrah = ParagraphStyle('Normala', fontSize=7, alignment=0)
     estilo_datos = estilos['Normal']
 
-    logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
+    logo_direccion = os.path.join('var', 'www', 'sistema_cardiaco','app', 'routes', 'logo.png')
     #print(logo_direccion)
 
     # Agregar logo del hospital
@@ -1858,7 +1858,7 @@ def generate_pdf3():
     estilo_tabla_paragrah = ParagraphStyle('Normala', fontSize=7, alignment=0)
     estilo_datos = estilos['Normal']
 
-    logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
+    logo_direccion = os.path.join('var', 'www', 'sistema_cardiaco','app', 'routes', 'logo.png')
     #print(logo_direccion)
 
     # Agregar logo del hospital
