@@ -701,9 +701,9 @@ def informes_empleado():
      
     return render_template("informes_empleado.html",nombre_paciente=nombre_paciente, carnet_paciente=carnet_paciente, frecuencias=frecuencias, nombre_usuario=nombre_usuario, total_pacientes= total_pacientes, total_usuarios=total_usuarios)
  
-import locale
+#import locale
  
-locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+#locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 
 @routes.route("/buscar_frecuencia", methods=["POST"])
 @login_requerido
