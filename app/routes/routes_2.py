@@ -1252,7 +1252,7 @@ def generate_pdf():
     print(logo_direccion)
 
     # Agregar logo del hospital
-    logo = "logo.png"  # Ruta al logo
+    #logo = "logo.png"  # Ruta al logo
     imagen_logo = Image(logo_direccion, 2 * inch, 1 * inch)  # Ajustar el tamaño del logo
     #imagen_logo.hAlign = 'LEFT'
     #elementos.append(imagen_logo)
