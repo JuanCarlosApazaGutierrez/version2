@@ -1,10 +1,11 @@
 from app.models.frecuencia import Frecuencia
 from app.models.clasificacion import Clasificacion
+from app.models.paciente import Paciente
 from app.serializer.serializadorUniversal import SerializadorUniversal
 from app.config.extensiones import db
 from datetime import datetime
-from sqlalchemy import func, extract
-from sqlalchemy import desc   
+from sqlalchemy import func, extract, desc, case
+
 class ServiciosFrecuencia():
     def crear(paciente, ritmo, clasificacion, valor, estado=None):
         frecuencia = Frecuencia(paciente, ritmo, clasificacion, valor, estado)
@@ -72,8 +73,11 @@ class ServiciosFrecuencia():
         return respuesta
 
     def obtener_frecuencias_por_paciente_y_fecha(id_paciente, fecha):
+        # Convertir la fecha a formato datetime si no lo es
         fecha = str(fecha)
-        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d')  
+        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d')  # Suponiendo que la fecha es un string con formato YYYY-MM-DD
+
+        # Realizar la consulta
         frecuencias = db.session.query(
             Frecuencia.id_frecuencia,
             Frecuencia.ritmo,
@@ -83,8 +87,9 @@ class ServiciosFrecuencia():
         ).join(Clasificacion, Frecuencia.id_clasificacion == Clasificacion.id_clasificacion) \
         .filter(Frecuencia.id_paciente == id_paciente) \
         .filter(func.date(Frecuencia.fecha) == func.date(fecha_obj)) \
-        .all()
+        .order_by(Frecuencia.fecha).all()
 
+        # Retornar los resultados como lista de diccionarios para facilidad
         resultados = []
         for frecuencia in frecuencias:
             resultados.append({
@@ -157,9 +162,8 @@ class ServiciosFrecuencia():
             })
 
         return resultados
-    
   
-    
+
     def obtener_frecuencias_lista(id_paciente):
         frecuencias = db.session.query(
             Frecuencia.id_frecuencia,
@@ -171,8 +175,8 @@ class ServiciosFrecuencia():
         ).join(Clasificacion, Frecuencia.id_clasificacion == Clasificacion.id_clasificacion) \
         .filter(Frecuencia.id_paciente == id_paciente) \
         .order_by(desc(Frecuencia.fecha)) 
-
-     
+ 
+      
         resultados = []
         for frecuencia in frecuencias:
             resultados.append({
@@ -183,5 +187,34 @@ class ServiciosFrecuencia():
                 'clasificacion': frecuencia.nombre,
                 'id_clasificacion': frecuencia.id_clasificacion
             })
-
+ 
         return resultados
+    
+    def obtener_lista_fechas_recientes(id_paciente):
+        paciente = Paciente.query.get(id_paciente)
+
+        id_pac = paciente.id_paciente
+
+        resultados = db.session.query(Frecuencia.fecha, func.count(Frecuencia.id_frecuencia).label('cantidad_registros'), func.sum(case((Frecuencia.id_clasificacion == 10, 1), else_=0)).label('cantidad_normal')).group_by(func.date(Frecuencia.fecha)).order_by(func.date(Frecuencia.fecha).desc()).all()
+
+        datos_req = ['fecha', 'cantidad_registros', 'cantidad_normal']
+
+        resultado = SerializadorUniversal.serializar_lista(datos=resultados, campos_requeridos=datos_req)
+
+        for fila in resultado:
+            cant_tot = int(fila['cantidad_registros'])
+            cant_nrm = int(fila['cantidad_normal'])
+            cant_alr = cant_tot - cant_nrm
+
+            porcentaje_alr = (cant_alr / cant_tot) * 100
+
+            porcentaje_alr = "{:.2f}".format(porcentaje_alr)
+
+            fila['porcentaje_alertas'] = porcentaje_alr
+
+            fila['fecha_m'] = fila['fecha'].strftime("%d/%m/%Y")
+            fila['fecha_v'] = fila['fecha'].strftime("%Y-%m-%d")
+
+
+
+        return resultado

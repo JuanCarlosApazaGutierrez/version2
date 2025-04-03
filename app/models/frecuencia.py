@@ -11,7 +11,7 @@ class Frecuencia(db.Model):
     valor = db.Column(db.Float, nullable = False)
     id_estado = db.Column(db.Integer, nullable = True, default = None)
     activo = db.Column(db.Integer, default = 1)
-    fecha = db.Column(db.DateTime, default = datetime.utcnow)
+    fecha = db.Column(db.DateTime, default = datetime.now())
 
     def __init__(self, paciente, ritmo, clasificacion, valor, estado = None):
         self.id_paciente = paciente
@@ -19,4 +19,7 @@ class Frecuencia(db.Model):
         self.id_clasificacion = clasificacion
         self.valor = valor
         self.id_estado = estado
+        hora_actual = datetime.now()
+        print(f"hora: {hora_actual}")
+        self.fecha = hora_actual
         

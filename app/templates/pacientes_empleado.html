@@ -24,7 +24,7 @@
                                 <th>Edad</th>
                                 <th>Encargado</th>
                                 <th>Fecha de Nacimiento</th>
-                                <th>Tasa</th>
+                                <th>Ultima FC <br/>Fecha y Hora</th>
                                 <th>Estado</th>
                                 <th>Opciones</th>
                             </tr>
@@ -38,7 +38,7 @@
                                 <td>{{ paciente.edad }} años</td> 
                                 <td>{{ paciente.encargado }}</td>
                                 <td>{{ paciente.fecha_nacimiento }}</td>
-                                <td>{{ paciente.tasa }}</td>
+                                <td>{{ paciente.ultima_frecuencia.valor }}<br/>{{ paciente.ultima_frecuencia.fecha }}</td>
                                 <td>
                                     <span class="label {{ 'label-success' if paciente.activo else 'label-danger' }}">
                                         {{ 'Activo' if paciente.activo else 'Inactivo' }}
@@ -152,9 +152,10 @@
             <fieldset>
                 <input type="hidden" id="editarId" />
                 
-                <div class="control-group">
+                <div class="control-group" hidden>
                     <label class="control-label" for="editarEncargado">Encargado</label>
                     <div class="controls">
+                        
                         <select id="editarEncargado">
                             {% for usuario in encargados %}
                                 <option value="{{ usuario.id_usuario }}">{{ usuario.nombre }}</option>
@@ -180,7 +181,7 @@
                 <div class="control-group">
                     <label class="control-label" for="editarDiagnostico">Diagnóstico</label>
                     <div class="controls">
-                        <input class="input-xlarge focused" id="editarDiagnostico" type="text" value="">
+                        <input class="input-xlarge focused" id="editarDiagnostico" type="text" value="" readonly>
                     </div>
                 </div>
 
@@ -191,13 +192,13 @@
                     </div>
                 </div>
 
-                <div class="control-group">
+                <div class="control-group" hidden>
                     <label class="control-label" for="editarTasa">Tasa</label>
                     <div class="controls">
                         <input class="input-xlarge focused" id="editarTasa" type="number" value="">
                     </div>
                 </div>
-                <div class="control-group">
+                <div class="control-group" hidden>
                     <label class="control-label" for="editarTokenAcceso">Token de Acceso</label>
                     <div class="controls">
                         <input class="input-xlarge focused" id="editarTokenAcceso" type="text" value="">

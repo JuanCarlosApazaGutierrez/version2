@@ -6,7 +6,7 @@ class Alerta(db.Model):
 
     id_alerta = db.Column(db.Integer, primary_key = True)
     id_paciente = db.Column(db.Integer, db.ForeignKey('paciente.id_paciente'))
-    fecha = db.Column(db.DateTime, default = datetime.utcnow)
+    fecha = db.Column(db.DateTime, default = datetime.now())
     alerta = db.Column(db.String(255))
     frecuencia = db.Column(db.Float)
     sonido = db.Column(db.String(20))
