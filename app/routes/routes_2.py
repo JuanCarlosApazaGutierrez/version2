@@ -1249,7 +1249,7 @@ def generate_pdf():
     estilo_datos = estilos['Normal']
 
     logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
-    #print(logo_direccion)
+    print(logo_direccion)
 
     # Agregar logo del hospital
     logo = "logo.png"  # Ruta al logo
