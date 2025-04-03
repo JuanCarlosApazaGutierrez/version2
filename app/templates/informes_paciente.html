@@ -19,12 +19,12 @@
                         <div class="btn-group pull-right" id="opcionesButtonGroup">
                             <button data-toggle="dropdown" class="btn dropdown-toggle">Opciones <span class="caret"></span></button>
                             <ul class="dropdown-menu">
-                                <li><a href="#" onclick="guardarComoPDF()">Guardar como PDF</a></li>
-                                <li><a href="#">Exportar en Excel</a></li>
+                                <li><a href="#" onclick="guardarComoPDF2()">Guardar como PDF</a></li>
+                                <!--li><a href="#">Exportar en Excel</a></li-->
                             </ul>
                         </div>
                         <div class="btn-group pull-right" id="guardarButtonGroup" style="display:none;">
-                            <button class="btn btn-primary" onclick="guardarComoPDF()">Guardar como PDF</button>
+                            <button class="btn btn-primary" onclick="guardarComoPDF2()">Guardar como PDF</button>
                         </div>
                     </div>
                     
@@ -153,6 +153,25 @@
             }
         })
         .catch(error => console.error("Error:", error));
+    }
+
+    function guardarComoPDF2(){
+        const fecha = document.getElementById("fecha").value;
+        fetch(`/generate_pdf3?id_paciente={{ carnet }}&fecha=${fecha}`, {
+            method: 'GET'
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'informe_paciente.pdf';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(error => console.error('Error al generar el PDF:', error));
     }
 
     function guardarComoPDF() {
