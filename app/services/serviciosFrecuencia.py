@@ -195,15 +195,51 @@ class ServiciosFrecuencia():
 
         id_pac = paciente.id_paciente
 
-        resultados = db.session.query(Frecuencia.fecha, func.count(Frecuencia.id_frecuencia).label('cantidad_registros'), func.sum(case((Frecuencia.id_clasificacion == 10, 1), else_=0)).label('cantidad_normal')).group_by(func.date(Frecuencia.fecha)).order_by(func.date(Frecuencia.fecha).desc()).all()
+        frecuencias = Frecuencia.query.filter(Frecuencia.id_paciente==id_paciente).all()
 
-        datos_req = ['fecha', 'cantidad_registros', 'cantidad_normal']
+        resultados = None
+
+        fechas = []
+        cantidad_registros = {}
+        cantidad_normal = {}
+
+        if frecuencias:
+            resultados = []
+
+            for frecuencia in frecuencias:
+                fecha_str = frecuencia.fecha.strftime("%Y-%m-%d")
+                if fecha_str not in cantidad_registros:
+                    cantidad_registros[fecha_str] = 0
+                    fechas.append(fecha_str)
+                if fecha_str not in cantidad_normal:
+                    cantidad_normal[fecha_str] = 0
+                
+                cantidad_registros[fecha_str] = cantidad_registros[fecha_str] + 1
+                cantidad_normal[fecha_str] = cantidad_normal[fecha_str] + 1
+                
+                #if 'clave' not in mi_diccionario:
+                #    mi_diccionario['clave'] = 0
+
+            fechas_ordenadas = sorted(fechas, key=lambda x: datetime.strptime(x, "%Y-%m-%d"), reverse=True)
+
+            for fecha in fechas_ordenadas:
+                cuerpo = {
+                    'fecha': datetime.strptime(fecha, "%Y-%m-%d"),
+                    'cantidad_registros': cantidad_registros[fecha],
+                    'cantidad_normal': cantidad_normal[fecha]
+                }
+                resultados.append(cuerpo)
+
+
+        #resultados = db.session.query(Frecuencia.fecha, func.count(Frecuencia.id_frecuencia).label('cantidad_registros'), func.sum(case((Frecuencia.id_clasificacion == 10, 1), else_=0)).label('cantidad_normal')).group_by(func.date(Frecuencia.fecha)).order_by(func.date(Frecuencia.fecha).desc()).all()
+
+        #datos_req = ['fecha', 'cantidad_registros', 'cantidad_normal']
 
         if resultados:
 
-            resultado = SerializadorUniversal.serializar_lista(datos=resultados, campos_requeridos=datos_req)
+            #resultado = SerializadorUniversal.serializar_lista(datos=resultados, campos_requeridos=datos_req)
 
-            for fila in resultado:
+            for fila in resultados:
                 cant_tot = int(fila['cantidad_registros'])
                 cant_nrm = int(fila['cantidad_normal'])
                 cant_alr = cant_tot - cant_nrm
@@ -219,6 +255,6 @@ class ServiciosFrecuencia():
 
 
 
-            return resultado
+            return resultados
         else:
             return None
