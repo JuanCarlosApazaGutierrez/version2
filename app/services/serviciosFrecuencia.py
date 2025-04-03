@@ -199,22 +199,26 @@ class ServiciosFrecuencia():
 
         datos_req = ['fecha', 'cantidad_registros', 'cantidad_normal']
 
-        resultado = SerializadorUniversal.serializar_lista(datos=resultados, campos_requeridos=datos_req)
+        if resultados:
 
-        for fila in resultado:
-            cant_tot = int(fila['cantidad_registros'])
-            cant_nrm = int(fila['cantidad_normal'])
-            cant_alr = cant_tot - cant_nrm
+            resultado = SerializadorUniversal.serializar_lista(datos=resultados, campos_requeridos=datos_req)
 
-            porcentaje_alr = (cant_alr / cant_tot) * 100
+            for fila in resultado:
+                cant_tot = int(fila['cantidad_registros'])
+                cant_nrm = int(fila['cantidad_normal'])
+                cant_alr = cant_tot - cant_nrm
 
-            porcentaje_alr = "{:.2f}".format(porcentaje_alr)
+                porcentaje_alr = (cant_alr / cant_tot) * 100
 
-            fila['porcentaje_alertas'] = porcentaje_alr
+                porcentaje_alr = "{:.2f}".format(porcentaje_alr)
 
-            fila['fecha_m'] = fila['fecha'].strftime("%d/%m/%Y")
-            fila['fecha_v'] = fila['fecha'].strftime("%Y-%m-%d")
+                fila['porcentaje_alertas'] = porcentaje_alr
+
+                fila['fecha_m'] = fila['fecha'].strftime("%d/%m/%Y")
+                fila['fecha_v'] = fila['fecha'].strftime("%Y-%m-%d")
 
 
 
-        return resultado
+            return resultado
+        else:
+            return None
