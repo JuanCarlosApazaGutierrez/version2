@@ -1248,7 +1248,8 @@ def generate_pdf():
     estilo_tabla_paragrah = ParagraphStyle('Normala', fontSize=7, alignment=0)
     estilo_datos = estilos['Normal']
 
-    logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
+    #logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
+    logo_direccion = os.path.join('var', 'www', 'sistema_cardiaco','app', 'routes', 'logo.png')
     print(logo_direccion)
 
     # Agregar logo del hospital
