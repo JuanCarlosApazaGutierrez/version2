@@ -1,0 +1,417 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<br/>
+<div class="span9" id="content">
+    <div class="row-fluid">
+        <div class="block">
+            <div class="navbar navbar-inner block-header">
+                <div class="muted pull-left"><h4> LISTA DE USUARIOS</h4></div>
+            </div>
+            <div class="block-content collapse in">
+                <div class="span12">
+                    <div class="table-toolbar">
+                        <div class="btn-group">
+                            <a href="#agregarUsuuario" data-toggle="modal"><button class="btn btn-success">Registrar Nuevo <i class="icon-plus icon-white"></i></button></a>
+                        </div>
+                        <div class="btn-group pull-right" id="opcionesButtonGroup">
+                            <button data-toggle="dropdown" class="btn dropdown-toggle">Opciones <span class="caret"></span></button>
+                            <ul class="dropdown-menu">
+                                <li><a href="#" onclick="guardarComoPDFUsuarios()">Guardar como PDF</a></li>
+                                <li><a href="#" onclick="exportarExcelUsuarios()">Exportar en Excel</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <table cellpadding="0" cellspacing="0" border="0" class="table table-striped table-bordered" id="example2">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Nombre</th>
+                                <th>Correo</th>
+                                <th>Carnet</th>
+                                <th>Teléfono</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th>Opciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usuario in usuarios %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ usuario.nombre }}</td>
+                                <td>{{ usuario.correo }}</td>
+                                <td>{{ usuario.carnet }}</td>
+                                <td>{{ usuario.telefono }}</td>
+                                <td>
+                                    {% if usuario.id_rol == 1 %}
+                                      <span class="badge badge-info">Administrador</span>
+                                    {% elif usuario.id_rol == 2 %}
+                                      <span class="badge badge-success">Padre</span>
+                                    {% else %}
+                                      <span class="badge badge-secondary">Otro</span>
+                                    {% endif %}
+                                  </td>
+                                <td>
+                                    <span class="label {{ 'label-success' if usuario.activo else 'label-danger' }}">
+                                        {{ 'Activo' if usuario.activo else 'Inactivo' }}
+                                    </span>
+                                </td>
+                                <td style="width:150px;">
+                                    <button class="btn btn-primary" onclick="editarUsuario({{ usuario.id_usuario }}, '{{ usuario.nombre }}', '{{ usuario.correo }}', '{{ usuario.carnet }}', '{{ usuario.telefono }}', '{{ usuario.id_rol }}')"><i class="icon-edit icon-white"></i></button>
+                                    <button class="btn {{ 'btn-info' if not usuario.activo else 'btn-danger' }}" 
+                                            onclick="confirmarEliminacion({{ usuario.id_usuario }}, {{ usuario.activo }})">
+                                        <i class="icon-{{ 'check' if not usuario.activo else 'trash' }} icon-white"></i>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="mostrarModalCambioContrasena({{ usuario.id_usuario }})">
+                                        <i class="icon-cog icon-white"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+ 
+<div id="cambiarContrasenaModal" class="modal hide">
+    <div class="modal-header">
+        <button data-dismiss="modal" class="close" type="button">&times;</button>
+        <h3>Cambiar Contraseña</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal" id="cambiarContrasenaForm">
+            <fieldset>
+                <input type="hidden" id="idUsuarioContrasena" />
+                <div class="control-group">
+                    <label class="control-label" for="nuevaContrasena">Nueva Contraseña</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="nuevaContrasena" type="password" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="confirmarContrasena">Confirmar Contraseña</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="confirmarContrasena" type="password" value="">
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-primary" onclick="cambiarContrasena()">Guardar Cambios</button>
+        <button class="btn" data-dismiss="modal">Cancelar</button>
+    </div>
+</div>
+
+<div id="agregarUsuuario" class="modal hide">
+    <div class="modal-header">
+        <button data-dismiss="modal" class="close" type="button">&times;</button>
+        <h3>Agregar Usuario</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal" id="usuarioForm">
+            <fieldset>
+                <br/>
+                <div class="control-group">
+                    <label class="control-label" for="nombre">Nombre Completo</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="nombre" type="text" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="correo">Correo Electrónico</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="correo" type="email" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="carnet">Carnet de Identidad</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="carnet" type="number" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="telefono">Teléfono</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="telefono" type="number" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="password">Contraseña</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="password" type="password" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="rol">Rol</label>
+                    <div class="controls">
+                        <select id="rol">
+                            <option>Elige un rol </option>
+                            {% for rol in roles %}
+                                <option value="{{ rol.id_rol }}">{{ rol.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-primary" onclick="agregarUsuario()">Guardar</button>
+        <button class="btn" data-dismiss="modal">Cancelar</button>
+    </div>
+</div>
+
+<div id="editarUsuarioModal" class="modal hide">
+    <div class="modal-header">
+        <button data-dismiss="modal" class="close" type="button">&times;</button>
+        <h3>Editar Usuario</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal" id="editarUsuarioForm">
+            <fieldset>
+                <input type="hidden" id="editarId" />
+                <div class="control-group">
+                    <label class="control-label" for="editarNombre">Nombre Completo</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="editarNombre" type="text" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="editarCorreo">Correo Electrónico</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="editarCorreo" type="email" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="editarCarnet">Carnet de Identidad</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="editarCarnet" type="number" value="">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="editarTelefono">Teléfono</label>
+                    <div class="controls">
+                        <input class="input-xlarge focused" id="editarTelefono" type="number" value="">
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-primary" onclick="guardarEdicion()">Guardar Cambios</button>
+        <button class="btn" data-dismiss="modal">Cancelar</button>
+    </div>
+</div>
+
+<div id="confirmarEliminacionModal" class="modal hide">
+    <div style="padding:10px;">
+        <div class="text-center">
+            <h3>¿Estás seguro de eliminar este paciente?</h3>
+            <br/><br/>
+            <button class="btn btn-danger" id="confirmarEliminarBtn">Eliminar</button>
+            <button class="btn" data-dismiss="modal">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.21/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+    function guardarComoPDFUsuarios() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Agregar logo e título
+        doc.addImage('../static/img/logo_info.png', 'PNG', 15, 10, 50, 30);
+        doc.setFontSize(18);
+        doc.text('Lista de Usuarios', 105, 30, { align: 'center' });
+
+        // Encabezado con fecha y lugar
+        const fechaActual = new Date();
+        const dia = ("0" + fechaActual.getDate()).slice(-2);
+        const mes = ("0" + (fechaActual.getMonth() + 1)).slice(-2);
+        const anio = fechaActual.getFullYear();
+        const fechaTexto = `${dia}/${mes}/${anio}`;
+        const lugar = "La Paz - Bolivia";
+        const headerInfo = [
+            ["Fecha:", fechaTexto, "Lugar:", lugar]
+        ];
+
+        doc.autoTable({
+            body: headerInfo,
+            startY: 45,
+            theme: 'grid',
+            styles: { fontSize: 10, cellPadding: 1.5 },
+            columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
+        });
+
+        // Extraer datos de la tabla pero solo de las primeras 5 columnas
+        const table = document.getElementById("example2");
+        const rows = table.rows;
+        let tableData = [];
+        for (let i = 0; i < rows.length; i++) {
+            let rowData = [];
+            // Recorremos sólo las columnas 0 a 4
+            for (let j = 0; j < rows[i].cells.length; j++) {
+                if (j < 5) {
+                    rowData.push(rows[i].cells[j].innerText);
+                }
+            }
+            tableData.push(rowData);
+        }
+
+        // Agregar la tabla al PDF utilizando autoTable
+        doc.autoTable({
+            head: [tableData[0]],
+            body: tableData.slice(1),
+            startY: doc.lastAutoTable.finalY + 5,
+            styles: { fontSize: 10, cellPadding: 2 }
+        });
+
+        doc.save('lista_usuarios.pdf');
+    }
+
+    function exportarExcelUsuarios() {
+        const table = document.getElementById("example2");
+        const rows = table.rows;
+        let csv = [];
+        for (let i = 0; i < rows.length; i++) {
+            let row = [];
+            const cols = rows[i].querySelectorAll("td, th");
+            for (let j = 0; j < cols.length; j++) {
+                if (j < 5) {
+                    row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+                }
+            }
+            csv.push(row.join(","));
+        }
+        const csvString = csv.join("\n");
+        const filename = 'lista_usuarios.csv';
+        const link = document.createElement("a");
+        link.setAttribute("href", "data:text/csv;charset=utf-8," + encodeURIComponent(csvString));
+        link.setAttribute("download", filename);
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    function mostrarModalCambioContrasena(idUsuario) {
+        document.getElementById("idUsuarioContrasena").value = idUsuario;
+        $('#cambiarContrasenaModal').modal('show');
+    }
+    
+    function cambiarContrasena() {
+        const idUsuario = document.getElementById("idUsuarioContrasena").value;
+        const nuevaContrasena = document.getElementById("nuevaContrasena").value;
+        const confirmarContrasena = document.getElementById("confirmarContrasena").value;
+    
+        if (!nuevaContrasena || !confirmarContrasena) {
+            alert("Por favor, complete ambos campos.");
+            return;
+        }
+    
+        if (nuevaContrasena !== confirmarContrasena) {
+            alert("Las contraseñas no coinciden.");
+            return;
+        }
+    
+        fetch(`/cambiar_contrasena/${idUsuario}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nuevaContrasena })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.mensaje);
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+    
+    function agregarUsuario() {
+        const nombre = document.getElementById("nombre").value;
+        const correo = document.getElementById("correo").value;
+        const carnet = document.getElementById("carnet").value;
+        const telefono = document.getElementById("telefono").value;
+        const password = document.getElementById("password").value;
+        const rol = document.getElementById("rol").value;
+    
+        if (!nombre || !correo || !carnet || !telefono || !password || !rol) {
+            alert("Por favor, complete todos los campos.");
+            return;
+        }
+    
+        fetch("/agregar_usuario", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nombre, correo, carnet, telefono, password, rol })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.mensaje);
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+    
+    let usuarioAEliminar = null;
+    function editarUsuario(id, nombre, correo, carnet, telefono, rol) {
+        document.getElementById('editarId').value = id;    
+        document.getElementById('editarNombre').value = nombre;
+        document.getElementById('editarCorreo').value = correo;
+        document.getElementById('editarCarnet').value = carnet;
+        document.getElementById('editarTelefono').value = telefono;
+        $('#editarUsuarioModal').modal('show');
+    }
+    
+    function guardarEdicion() {
+        const id = document.getElementById("editarId").value;
+        const nombre = document.getElementById("editarNombre").value;
+        const correo = document.getElementById("editarCorreo").value;
+        const carnet = document.getElementById("editarCarnet").value;
+        const telefono = document.getElementById("editarTelefono").value;
+    
+        fetch("/editar_usuario", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, nombre, correo, carnet, telefono })
+        }).then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                }
+            }).catch(error => console.error("Error:", error));
+    }
+    
+    function confirmarEliminacion(id, estado) {
+        usuarioAEliminar = id;
+        $('#confirmarEliminacionModal').modal('show');
+    }
+    
+    document.getElementById("confirmarEliminarBtn").onclick = function () {
+        fetch(`/eliminar_usuario/${usuarioAEliminar}`, {
+            method: "POST"
+        }).then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                }
+            }).catch(error => console.error("Error:", error));
+    };
+</script>
+
+{% endblock %}

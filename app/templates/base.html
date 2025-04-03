@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>Psicolegria - ADMIN</title>
+    <link href="../static/op3/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../static/op3/bootstrap/css/bootstrap-responsive.min.css" rel="stylesheet" media="screen">
+    <link href="../static/op3/vendors/easypiechart/jquery.easy-pie-chart.css" rel="stylesheet" media="screen">
+    <link href="../static/op3/assets/styles.css" rel="stylesheet" media="screen">
+    <script src="../static/op3/vendors/modernizr-2.6.2-respond-1.1.0.min.js"></script>
+    <link href="../static/op3/assets/DT_bootstrap.css" rel="stylesheet" media="screen">
+     
+</head>
+<body>
+   
+    <div>
+        <div class="navbar navbar-fixed-top">
+            <div class="navbar-inner">
+                <div class="container-fluid">
+                    <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse"> <span class="icon-bar"></span>
+                     <span class="icon-bar"></span>
+                     <span class="icon-bar"></span>
+                    </a>
+                    <a class="brand" href="/dashboard">
+                        <img src="../static/img/logo.png" style="height:40px">
+                    </a>
+                    <div class="nav-collapse collapse "  style="margin-top:8px;">
+                        <ul class="nav pull-right ">
+                            <li class="dropdown">
+                                
+                                <a href="#" role="button" class="dropdown-toggle" data-toggle="dropdown">
+                                    <i class="icon-user"></i> 
+                                    {{ nombre_usuario }} 
+                                    <i class="caret"></i>
+                                </a>
+                                <ul class="dropdown-menu ">
+                                    <li>
+                                        <a tabindex="-1" href="#">Perfil</a>
+                                    </li>
+                                    <li class="divider"></li>
+                                    <li>
+                                        <a tabindex="-1"  onclick="cerrarSesion()">Cerrar Sesion</a>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                        
+
+<script>
+  function cerrarSesion() {
+    fetch("/cerrar_sesion", {
+      method: "POST"  
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.redirect) {
+     
+        window.location.href = data.redirect;
+      } else {
+        alert(data.mensaje);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+  }
+</script>
+
+                        <ul class="nav" >
+                            <li>
+                                <a href="dashboard">Inicio</a>
+                            </li>
+                            <li>
+                                <a href="usuarios">Usuarios</a>
+                            </li>
+                             
+                            <li>
+                                <a href="pacientes">Pacientes</a>
+                            </li>
+                            <li>
+                                <a href="informes">Informe</a>
+                            </li>
+                            <li>
+                                <a href="reportes">Reportes</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <!--/.nav-collapse -->
+                </div>
+            </div>
+        </div>
+        <div class="container-fluid">
+            <div class="row-fluid">
+                <div class="span3" id="sidebar">
+                    <ul class="nav nav-list bs-docs-sidenav nav-collapse collapse">
+                       
+                        <li class="active">
+                            <a href="dashboard"><i class="icon-chevron-right"></i>Dashboard</a>
+                        </li>
+                        <li>
+                            <a href="usuarios"><span class="badge badge-success pull-right">{{ total_usuarios }}</span> Usuarios</a>
+                        </li>
+                       
+                        <li>
+                            <a href="pacientes"><span class="badge badge-info pull-right">{{ total_pacientes }}</span> Pacientes</a>
+                        </li>
+                        <li>
+                            <a href="informes"><i class="icon-chevron-right"></i>Informes</a>
+                             
+                        </li>
+                        <li>
+                            <a href="reportes"><i class="icon-chevron-right"></i>Reportes</a>
+                            
+                        </li>
+                         
+                    </ul>
+                </div>
+                
+        {% block content %}{% endblock %}
+    </div>
+    <hr>
+    <footer>
+        <p style="text-align: right;">&copy; 2025 SISTEMA DE MONITORIZACIÓN  |  Términos y condiciones</p>
+    </footer>
+    
+</div>
+    </div>
+    <script src="../static/op3/vendors/jquery-1.9.1.min.js"></script>
+    <script src="../static/op3/bootstrap/js/bootstrap.min.js"></script>
+    <script src="../static/op3/vendors/easypiechart/jquery.easy-pie-chart.js"></script>
+    <script src="../static/op3/assets/scripts.js"></script>
+    <script src="../static/op3/vendors/datatables/js/jquery.dataTables.min.js"></script>
+
+    <script src="../static/op3/assets/DT_bootstrap.js"></script>
+  
+
+    
+    <script>
+       
+    $(function() {
+        $('.chart').easyPieChart({animate: 1000});
+    });
+    </script>
+</body>
+</html>

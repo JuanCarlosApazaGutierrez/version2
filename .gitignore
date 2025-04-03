@@ -1,0 +1,8 @@
+/venv/
+.env
+**/__pycache__/
+separador_datos.py
+app/static/
+app/static/
+app/routes/freqcard-firebase-adminsdk-fbsvc-9423d81a63.json
+credenciales_firebase.json
