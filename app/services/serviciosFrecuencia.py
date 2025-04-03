@@ -215,7 +215,10 @@ class ServiciosFrecuencia():
                     cantidad_normal[fecha_str] = 0
                 
                 cantidad_registros[fecha_str] = cantidad_registros[fecha_str] + 1
-                cantidad_normal[fecha_str] = cantidad_normal[fecha_str] + 1
+
+                if frecuencia.id_clasificacion == 10:         
+
+                    cantidad_normal[fecha_str] = cantidad_normal[fecha_str] + 1
                 
                 #if 'clave' not in mi_diccionario:
                 #    mi_diccionario['clave'] = 0
