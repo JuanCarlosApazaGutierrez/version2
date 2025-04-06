@@ -94,3 +94,10 @@ class ServiciosSonido():
             registro = None  # Seleccionamos el primer registro más cercano
 
         return registro
+    
+    def buscar_ultimo_registro(id_paciente):
+        frecuencias = Frecuencia.query.filter(Frecuencia.id_paciente == id_paciente).order_by(Frecuencia.fecha.desc()).first()
+        if frecuencias:
+            return frecuencias
+        else:
+            return None

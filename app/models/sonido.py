@@ -12,3 +12,5 @@ class Sonido(db.Model):
     def __init__(self, paciente, sonido):
         self.id_paciente = paciente
         self.sonido = sonido
+        hora_actual = datetime.now()
+        self.fecha = hora_actual

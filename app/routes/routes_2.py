@@ -29,6 +29,7 @@ from google.oauth2 import service_account
 import google.auth.transport.requests
 
 
+#services_account_file = os.path.join(os.getcwd(), 'app', 'routes', "freqcard-firebase-adminsdk-fbsvc-9423d81a63.json")
 services_account_file = os.path.join('var', 'www', 'sistema_cardiaco', 'app', 'routes', "freqcard-firebase-adminsdk-fbsvc-9423d81a63.json")
 #credentials = service_account.Credentials.from_service_account_file(services_account_file, scopes="https://www.googleapis.com/auth/cloud-plataform") # https://www.googleapis.com/auth/firebase.messaging
 #default_app = firebase_admin.initialize_app()
@@ -931,6 +932,25 @@ def generar_reporte_diario():
 
 # ------------------------------------------ -------------------------------------------------
 
+FRECUENCIAS_NORMALES = {
+    '0': [100, 160],
+    '1': [90, 150],
+    '2': [90, 150],
+    '3': [80, 140],
+    '4': [80, 140],
+    '5': [80, 140],
+    '6': [70, 120],
+    '7': [70, 120],
+    '8': [70, 120],
+    '9': [70, 120],
+    '10': [70, 120],
+    '11': [70, 120],
+    '12': [70, 120],
+    '13': [70, 120],
+    '14': [70, 120],
+    '15': [70, 120]
+}
+
 @routes.route('/insertar_latido', methods=['POST'])
 def set_latido():
 
@@ -944,6 +964,21 @@ def set_latido():
     paciente = ServiciosPaciente.obtener_por_id(id_user)
     id_pac = paciente['id_paciente']
 
+    fecha_nacimiento = paciente['fecha_nacimiento']
+
+    hoy = datetime.now()
+
+    edad = hoy.year - fecha_nacimiento.year
+
+    # Ajustar si la fecha actual aún no ha llegado al cumpleaños de este año
+    if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
+        edad -= 1
+    if edad >15:
+        edad = 15
+
+    limite_sup = FRECUENCIAS_NORMALES[str(edad)][1]
+    limite_inf = FRECUENCIAS_NORMALES[str(edad)][0]
+
     frecuencia = ServiciosFrecuencia.crear(id_pac, 0, 10, latido)
 
     '''cursor.execute("""
@@ -952,7 +987,7 @@ def set_latido():
     """, (id_user, latido,))
     db.commit()'''
 
-    if latido >=115.0:
+    if latido >limite_sup:
 
         id_enc = paciente['id_encargado']
 
@@ -968,6 +1003,27 @@ def set_latido():
             token_user = usuario['token']
           
             titulo = "Frecuencia Alta Detectada"
+            cuerpo = f"Frecuencia detectada de {latido} bpm"
+            result = send_fcm_notification(token_user, titulo, cuerpo, latido, False)
+            return jsonify(result), 200
+        else:
+            return jsonify({'message':'No hay token'}), 400
+    elif latido <limite_inf:
+
+        id_enc = paciente['id_encargado']
+
+        usuario = ServiciosUsuario.obtener_id(id_enc)
+
+
+        '''cursor.execute("""
+            SELECT * FROM paciente WHERE carnet = %s
+        """, (id_user,))
+        control = cursor.fetchone()  '''
+
+        if usuario:
+            token_user = usuario['token']
+          
+            titulo = "Frecuencia Baja Detectada"
             cuerpo = f"Frecuencia detectada de {latido} bpm"
             result = send_fcm_notification(token_user, titulo, cuerpo, latido, False)
             return jsonify(result), 200
@@ -1074,10 +1130,11 @@ def set_sonido():
 
     if sonid:
         fecha_sonido = sonid.fecha
-        frecuencia_cercana = ServiciosSonido.buscar_registro_cercano(fecha_sonido, id_user)
+        #frecuencia_cercana = ServiciosSonido.buscar_registro_cercano(fecha_sonido, id_user)
+        frecuencia_cercana = ServiciosSonido.buscar_ultimo_registro(id_paciente=id_user)
         if frecuencia_cercana:
             id_frecuecia = frecuencia_cercana['id_frecuencia']
-            freq_cerc = int(round(float(frecuencia_cercana['valor'])))
+            freq_cerc = int(float(frecuencia_cercana['valor']))
             resultado = ServiciosFrecuencia.modificar(id_frecuecia, clasificacion)
 
 
@@ -1200,6 +1257,21 @@ def generate_pdf():
     frecuencias = ServiciosFrecuencia.obtener_frecuencias_por_paciente_y_fecha(id_paciente, fecha_actual)
     sonidos = ServiciosSonido.obtener_por_paciente_fecha(id_paciente, fecha_actual)
 
+    fecha_nacimiento = paciente['fecha_nacimiento']
+
+    hoy = datetime.now()
+
+    edad = hoy.year - fecha_nacimiento.year
+
+    # Ajustar si la fecha actual aún no ha llegado al cumpleaños de este año
+    if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
+        edad -= 1
+    if edad >15:
+        edad = 15
+
+    limite_sup = FRECUENCIAS_NORMALES[str(edad)][1]
+    limite_inf = FRECUENCIAS_NORMALES[str(edad)][0]
+
 
 
     fechas_h = []
@@ -1311,15 +1383,29 @@ def generate_pdf():
     clasificaciones = ServiciosClasificacion.obtener_todos()
     #print(clasificaciones)
 
-    cabecera = ['Fecha y Hora', 'Frecuencia', 'Sonido']
+    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad', 'Irregularidad (%)']
+    cabecera_an = ['Fecha y Hora', 'Frecuencia', 'Estado']
+
+    tabla_an = []
+    tabla_an.append(cabecera_an)
 
     tabla = []
     tabla.append(cabecera)
 
     if frecuencias:
+
+        indice = 0
         
         for frec in frecuencias:
+            indice = indice + 1
             print(frec)
+            fila_an = []
+            if float(frec['valor'])>limite_sup:
+                fila_an = [frec['fecha'], frec['valor'], 'Frecuencia Alta']
+                tabla_an.append(fila_an)
+            elif float(frec['valor'])<limite_inf:
+                fila_an = [frec['fecha'], frec['valor'], 'Frecuencia Baja']
+                tabla_an.append(fila_an)
             fila = []
             fila.append(frec['fecha'])
             fila.append(frec['valor'])
@@ -1329,7 +1415,30 @@ def generate_pdf():
                     soni = clas['nombre']
                     break'''
             
-            fila.append(frec['clasificacion'])
+            #fila.append(frec['clasificacion'])
+            if float(frec['valor'])>limite_sup and frec['clasificacion']=='Estado Normal':
+                fila.append('Frecuencia Alta')
+            elif float(frec['valor'])<limite_inf and frec['clasificacion']=='Estado Normal':
+                fila.append('Frecuencia Baja')
+            else:
+                fila.append(frec['clasificacion'])
+            if indice > 1:
+                diferencia_frec = float(frec['valor']) - float(tabla[indice-1][1])
+                diferencia_porc = diferencia_frec / float(tabla[indice-1][1])
+
+                if diferencia_frec > 0.0:
+                    fila.append(f'+ {diferencia_frec:.1f}')
+                    fila.append(f'+ {diferencia_porc:.3f} %')
+                else:
+                    fila.append(f'{diferencia_frec:.1f}')
+                    fila.append(f'{diferencia_porc:.3f} %')
+
+                
+            else:
+                fila.append('0.0')
+                fila.append('0.000 %')
+
+                
             tabla.append(fila)
     
     cabecera = ['Fecha y Hora', 'Sonido']
@@ -1356,6 +1465,9 @@ def generate_pdf():
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Fondo gris para la primera fila
         ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Mostrar líneas de la tabla
     ])
+
+    if len(tabla_an)==1:
+        tabla_an.append(['','Sin Anomalías',''])
     
 
     elementos.append(Spacer(1, 20))
@@ -1369,8 +1481,29 @@ def generate_pdf():
     elementos.append(tabla_sonidos)
 
     elementos.append(Spacer(1, 20))
+    tabla_anomalias = Table(tabla_an)
+    tabla_anomalias.setStyle(style)
+    elementos.append(tabla_anomalias)
+
+    elementos.append(Spacer(1, 20))
 
     elementos.append(imagen_grafica)
+    elementos.append(Spacer(1, 60))
+    firmas = Table([
+        ['_____________________________', '_____________________________'],
+        [f'{tutor["nombre"]}', 'Encargado del Centro Psicolegria'],
+        ['Encargado o Padre','']
+    ])
+
+    firmas.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
+        ('ALIGN', (0, 2), (-1, 2), 'CENTER'),
+        ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 2), (-1, 2), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+    ]))
+    elementos.append(firmas)
 
 
     # Generar el PDF  ----------------  pdf.build(elementos)
@@ -1441,6 +1574,21 @@ def generate_pdf2():
     frecuencias = ServiciosFrecuencia.obtener_frecuencias_por_paciente_y_fecha(id_paciente, fecha_actual)
     sonidos = ServiciosSonido.obtener_por_paciente_fecha(id_paciente, fecha_actual)
 
+    fecha_nacimiento = paciente['fecha_nacimiento']
+
+    hoy = datetime.now()
+
+    edad = hoy.year - fecha_nacimiento.year
+
+    # Ajustar si la fecha actual aún no ha llegado al cumpleaños de este año
+    if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
+        edad -= 1
+    if edad >15:
+        edad = 15
+
+    limite_sup = FRECUENCIAS_NORMALES[str(edad)][1]
+    limite_inf = FRECUENCIAS_NORMALES[str(edad)][0]
+
 
 
     fechas_h = []
@@ -1489,6 +1637,7 @@ def generate_pdf2():
     estilo_tabla_paragrah = ParagraphStyle('Normala', fontSize=7, alignment=0)
     estilo_datos = estilos['Normal']
 
+    #logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
     logo_direccion = os.path.join('var', 'www', 'sistema_cardiaco','app', 'routes', 'logo.png')
     #print(logo_direccion)
 
@@ -1551,15 +1700,29 @@ def generate_pdf2():
     clasificaciones = ServiciosClasificacion.obtener_todos()
     #print(clasificaciones)
 
-    cabecera = ['Fecha y Hora', 'Frecuencia', 'Sonido']
+    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad', 'Irregularidad (%)']
+    cabecera_an = ['Fecha y Hora', 'Frecuencia', 'Estado']
+
+    tabla_an = []
+    tabla_an.append(cabecera_an)
 
     tabla = []
     tabla.append(cabecera)
 
     if frecuencias:
+
+        indice = 0
         
         for frec in frecuencias:
+            indice = indice + 1
             print(frec)
+            fila_an = []
+            if float(frec['valor'])>limite_sup:
+                fila_an = [frec['fecha'], frec['valor'], 'Frecuencia Alta']
+                tabla_an.append(fila_an)
+            elif float(frec['valor'])<limite_inf:
+                fila_an = [frec['fecha'], frec['valor'], 'Frecuencia Baja']
+                tabla_an.append(fila_an)
             fila = []
             fila.append(frec['fecha'])
             fila.append(frec['valor'])
@@ -1569,7 +1732,30 @@ def generate_pdf2():
                     soni = clas['nombre']
                     break'''
             
-            fila.append(frec['clasificacion'])
+            #fila.append(frec['clasificacion'])
+            if float(frec['valor'])>limite_sup and frec['clasificacion']=='Estado Normal':
+                fila.append('Frecuencia Alta')
+            elif float(frec['valor'])<limite_inf and frec['clasificacion']=='Estado Normal':
+                fila.append('Frecuencia Baja')
+            else:
+                fila.append(frec['clasificacion'])
+            if indice > 1:
+                diferencia_frec = float(frec['valor']) - float(tabla[indice-1][1])
+                diferencia_porc = diferencia_frec / float(tabla[indice-1][1])
+
+                if diferencia_frec > 0.0:
+                    fila.append(f'+ {diferencia_frec:.1f}')
+                    fila.append(f'+ {diferencia_porc:.3f} %')
+                else:
+                    fila.append(f'{diferencia_frec:.1f}')
+                    fila.append(f'{diferencia_porc:.3f} %')
+
+                
+            else:
+                fila.append('0.0')
+                fila.append('0.000 %')
+
+                
             tabla.append(fila)
     
     cabecera = ['Fecha y Hora', 'Sonido']
@@ -1596,6 +1782,9 @@ def generate_pdf2():
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Fondo gris para la primera fila
         ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Mostrar líneas de la tabla
     ])
+
+    if len(tabla_an)==1:
+        tabla_an.append(['','Sin Anomalías',''])
     
 
     elementos.append(Spacer(1, 20))
@@ -1609,19 +1798,26 @@ def generate_pdf2():
     elementos.append(tabla_sonidos)
 
     elementos.append(Spacer(1, 20))
+    tabla_anomalias = Table(tabla_an)
+    tabla_anomalias.setStyle(style)
+    elementos.append(tabla_anomalias)
+
+    elementos.append(Spacer(1, 20))
 
     elementos.append(imagen_grafica)
-    elementos.append(Spacer(1, 20))
+    elementos.append(Spacer(1, 60))
     firmas = Table([
         ['_____________________________', '_____________________________'],
-        ['Encargado o Padre', 'Encargado del Centro Psicolegria']
+        [f'{tutor["nombre"]}', 'Encargado del Centro Psicolegria'],
+        ['Encargado o Padre','']
     ])
 
     firmas.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
-        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 1), (-1, 1), 10),
+        ('ALIGN', (0, 2), (-1, 2), 'CENTER'),
+        ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 2), (-1, 2), 10),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
     ]))
 
@@ -1811,6 +2007,22 @@ def generate_pdf3():
     sonidos = ServiciosSonido.obtener_por_paciente_fecha(id_paciente, fecha_actual)
 
 
+    fecha_nacimiento = paciente['fecha_nacimiento']
+
+    hoy = datetime.now()
+
+    edad = hoy.year - fecha_nacimiento.year
+
+    # Ajustar si la fecha actual aún no ha llegado al cumpleaños de este año
+    if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
+        edad -= 1
+    if edad >15:
+        edad = 15
+
+    limite_sup = FRECUENCIAS_NORMALES[str(edad)][1]
+    limite_inf = FRECUENCIAS_NORMALES[str(edad)][0]
+
+
 
     fechas_h = []
     frecuencias_h = []
@@ -1858,6 +2070,7 @@ def generate_pdf3():
     estilo_tabla_paragrah = ParagraphStyle('Normala', fontSize=7, alignment=0)
     estilo_datos = estilos['Normal']
 
+    #logo_direccion = os.path.join(os.getcwd(),'app', 'routes', 'logo.png')
     logo_direccion = os.path.join('var', 'www', 'sistema_cardiaco','app', 'routes', 'logo.png')
     #print(logo_direccion)
 
@@ -1920,15 +2133,29 @@ def generate_pdf3():
     clasificaciones = ServiciosClasificacion.obtener_todos()
     #print(clasificaciones)
 
-    cabecera = ['Fecha y Hora', 'Frecuencia', 'Sonido']
+    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad', 'Irregularidad (%)']
+    cabecera_an = ['Fecha y Hora', 'Frecuencia', 'Estado']
+
+    tabla_an = []
+    tabla_an.append(cabecera_an)
 
     tabla = []
     tabla.append(cabecera)
 
     if frecuencias:
+
+        indice = 0
         
         for frec in frecuencias:
+            indice = indice + 1
             print(frec)
+            fila_an = []
+            if float(frec['valor'])>limite_sup:
+                fila_an = [frec['fecha'], frec['valor'], 'Frecuencia Alta']
+                tabla_an.append(fila_an)
+            elif float(frec['valor'])<limite_inf:
+                fila_an = [frec['fecha'], frec['valor'], 'Frecuencia Baja']
+                tabla_an.append(fila_an)
             fila = []
             fila.append(frec['fecha'])
             fila.append(frec['valor'])
@@ -1938,7 +2165,30 @@ def generate_pdf3():
                     soni = clas['nombre']
                     break'''
             
-            fila.append(frec['clasificacion'])
+            #fila.append(frec['clasificacion'])
+            if float(frec['valor'])>limite_sup and frec['clasificacion']=='Estado Normal':
+                fila.append('Frecuencia Alta')
+            elif float(frec['valor'])<limite_inf and frec['clasificacion']=='Estado Normal':
+                fila.append('Frecuencia Baja')
+            else:
+                fila.append(frec['clasificacion'])
+            if indice > 1:
+                diferencia_frec = float(frec['valor']) - float(tabla[indice-1][1])
+                diferencia_porc = diferencia_frec / float(tabla[indice-1][1])
+
+                if diferencia_frec > 0.0:
+                    fila.append(f'+ {diferencia_frec:.1f}')
+                    fila.append(f'+ {diferencia_porc:.3f} %')
+                else:
+                    fila.append(f'{diferencia_frec:.1f}')
+                    fila.append(f'{diferencia_porc:.3f} %')
+
+                
+            else:
+                fila.append('0.0')
+                fila.append('0.000 %')
+
+                
             tabla.append(fila)
     
     cabecera = ['Fecha y Hora', 'Sonido']
@@ -1965,6 +2215,9 @@ def generate_pdf3():
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Fondo gris para la primera fila
         ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Mostrar líneas de la tabla
     ])
+
+    if len(tabla_an)==1:
+        tabla_an.append(['','Sin Anomalías',''])
     
 
     elementos.append(Spacer(1, 20))
@@ -1978,19 +2231,26 @@ def generate_pdf3():
     elementos.append(tabla_sonidos)
 
     elementos.append(Spacer(1, 20))
+    tabla_anomalias = Table(tabla_an)
+    tabla_anomalias.setStyle(style)
+    elementos.append(tabla_anomalias)
+
+    elementos.append(Spacer(1, 20))
 
     elementos.append(imagen_grafica)
-    elementos.append(Spacer(1, 20))
+    elementos.append(Spacer(1, 60))
     firmas = Table([
         ['_____________________________', '_____________________________'],
-        ['Encargado o Padre', 'Encargado del Centro Psicolegria']
+        [f'{tutor["nombre"]}', 'Encargado del Centro Psicolegria'],
+        ['Encargado o Padre','']
     ])
 
     firmas.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
-        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 1), (-1, 1), 10),
+        ('ALIGN', (0, 2), (-1, 2), 'CENTER'),
+        ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 2), (-1, 2), 10),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
     ]))
 
