@@ -91,7 +91,6 @@ function generarReporteMensual() {
         alert("Código de paciente no encontrado.");
         return;
     }
-
     $.ajax({
         url: "/generar_reporte_mensual",
         method: "POST",
@@ -116,6 +115,7 @@ function generarReporteMensual() {
         }
     });
 }
+
 function generarReporteDiario() {
     var pacienteDia = $("#paciente_dia").val(); 
     var fechaDia = $("#fecha_dia").val();   
@@ -136,20 +136,23 @@ function generarReporteDiario() {
             console.log(response); 
             Morris.Line({
                 element: 'hero-graph',
-                data: response.frecuencias, 
+                data: response.frecuencias,
                 xkey: 'period',
-                ykeys: ['bocinas', 'ladridos', 'petardos'],
-                labels: ['Bocinas', 'Ladridos', 'Petardos'],
-                lineColors: ["#81d5d9", "#a6e182", "#67bdf8"],
+                ykeys: ['normales', 'bocinas', 'ladridos', 'petardos'],
+                labels: ['Normales', 'Bocinas', 'Ladridos', 'Petardos'],
+                lineColors: ["#00ff00", "#ff0000", "#3498db", "#f39c12"], 
                 lineWidth: 2,
-                hideHover: 'auto'
+                hideHover: 'auto',
+                resize: true,
+                parseTime: false
             });
+            
+    
         },
         error: function() {
             alert("Hubo un error al generar el reporte.");
         }
     });
 }
-
 </script>
 {% endblock %}

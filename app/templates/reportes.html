@@ -10,7 +10,9 @@
             <div class="navbar navbar-inner block-header">
                 <div class="muted pull-left"><h4>ESTADO DE ALERTAS TOTALES MENSUALES</h4></div>
                 <div class="pull-right">
-                    <a href="#graficaMes" data-toggle="modal"><button class="btn btn-primary">Buscar datos del Paciente <i class="icon-search icon-white"></i></button></a>
+                    <a href="#graficaMes" data-toggle="modal">
+                        <button class="btn btn-primary">Buscar datos del Paciente <i class="icon-search icon-white"></i></button>
+                    </a>
                 </div>
             </div>
             <div class="block-content collapse in">
@@ -26,7 +28,9 @@
             <div class="navbar navbar-inner block-header">
                 <div class="muted pull-left"><h4>MONITOREO DIARIO</h4></div>
                 <div class="pull-right">
-                    <a href="#graficaDia" data-toggle="modal"><button class="btn btn-success">Buscar datos del Paciente <i class="icon-search icon-white"></i></button></a>
+                    <a href="#graficaDia" data-toggle="modal">
+                        <button class="btn btn-success">Buscar datos del Paciente <i class="icon-search icon-white"></i></button>
+                    </a>
                 </div>
             </div>
             <div class="block-content collapse in">
@@ -111,19 +115,21 @@ function generarReporteDiario() {
         },
         success: function(response) {
             alert("Reporte diario generado con éxito.");
-            console.log(response); // Verificar la estructura de datos que se devuelve
-
-            // Actualizar la gráfica con los datos obtenidos
+            console.log(response);
             Morris.Line({
                 element: 'hero-graph',
-                data: response.frecuencias, // Asegúrate de que la respuesta tenga la estructura correcta
+                data: response.frecuencias,
                 xkey: 'period',
-                ykeys: ['bocinas', 'ladridos', 'petardos'],
-                labels: ['Bocinas', 'Ladridos', 'Petardos'],
-                lineColors: ["#81d5d9", "#a6e182", "#67bdf8"],
+                ykeys: ['normales', 'bocinas', 'ladridos', 'petardos'],
+                labels: ['Normales', 'Bocinas', 'Ladridos', 'Petardos'],
+                lineColors: ["#00ff00", "#ff0000", "#3498db", "#f39c12"], 
                 lineWidth: 2,
-                hideHover: 'auto'
+                hideHover: 'auto',
+                resize: true,
+                parseTime: false
             });
+            
+    
         },
         error: function() {
             alert("Hubo un error al generar el reporte.");

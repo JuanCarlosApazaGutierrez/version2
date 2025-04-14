@@ -116,7 +116,19 @@
                 <div class="control-group">
                     <label class="control-label" for="diagnostico">Diagnóstico</label>
                     <div class="controls">
-                        <input class="input-xlarge focused" id="diagnostico" type="text" value="">
+                        <select class="input-xlarge focused" id="diagnostico" type="text">
+                            <option value="Cardiopatia Intraventricular" selected>Cardiopatia Intraventricular</option>
+                            <option value="Cardiopatia Interitivular">Cardiopatia Interitivular</option>
+                            <option value="Cardiopatia Auriloventricular">Cardiopatia Auriloventricular</option>
+                            <option value="Cardiopatia Comunicación Interauticular">Cardiopatia Comunicación Interauticular</option>
+                            <option value="Cardiopatia Comunicación Interventricular">Cardiopatia Comunicación Interventricular</option>
+                            <option value="Persistencia del Conductor Asterioso">Persistencia del Conductor Asterioso</option>
+                            <option value="Otro">Otro ...</option>
+                        </select>
+                        <div id="otro-input-container" style="display: none;">
+                            <input type="text" id="otro-diagnostico" placeholder="Especifica el diagnóstico" />
+                        </div>
+                        <!--input class="input-xlarge focused" id="diagnostico" type="text" value=""-->
                     </div>
                 </div>
 
@@ -302,14 +314,31 @@
         link.click();
         document.body.removeChild(link);
     }
+    function handleOtro(select) {
+        const otroInput = document.getElementById("otro-input-container");
+        if (select.value === "Otro") {
+            otroInput.style.display = "block";
+        } else {
+            otroInput.style.display = "none";
+            document.getElementById("otro-diagnostico").value = "";
+        }
+    }
     function agregarPaciente() {
         const id_encargado = document.getElementById("id_encargado").value;
         const nombre = document.getElementById("nombre").value;
         const carnet = document.getElementById("carnet").value;
-        const diagnostico = document.getElementById("diagnostico").value;
+        let diagnostico = document.getElementById("diagnostico").value;
         const fecha_nacimiento = document.getElementById("fecha_nacimiento").value;
         const tasa = document.getElementById("tasa").value;
         const token_acceso = document.getElementById("token_acceso").value;
+        // Verifica si se seleccionó "Otro" y usa el valor del input de texto
+        if (diagnostico == "Otro") {
+            if (!inputOtro || inputOtro.value.trim() === "") {
+                alert("Por favor, escriba el diagnóstico si seleccionó 'Otro'.");
+                return;
+            }
+            diagnostico = inputOtro.value.trim();
+        }
         if (!id_encargado || !nombre || !carnet || !diagnostico || !fecha_nacimiento || !tasa || !token_acceso) {
             alert("Por favor, complete todos los campos.");
             return;

@@ -6,7 +6,10 @@ from app.services.serviciosPaciente import ServiciosPaciente
 from app.services.serviciosRol import ServiciosRol
 from app.services.serviciosSonido import ServiciosSonido
 from app.services.serviciosUsuario import ServiciosUsuario
-#
+from datetime import datetime
+from flask import jsonify, request
+from datetime import datetime
+from collections import defaultdict
 
 from flask import Blueprint, render_template, request, jsonify, make_response
  
@@ -801,7 +804,6 @@ def generar_reporte_mensual():
     fecha_actual = datetime.now()
     meses = [(fecha_actual + timedelta(days=30 * i)).strftime("%Y-%m") for i in range(4)]
     
-    # Se ajusta para contar los valores y calcular el promedio posteriormente
     data = {mes: {"bocinas": {"suma": 0, "contador": 0},
                   "ladridos": {"suma": 0, "contador": 0},
                   "petardos": {"suma": 0, "contador": 0}} for mes in meses}
@@ -828,13 +830,11 @@ def generar_reporte_mensual():
             continue
         
         if period in data:
-            # Acumulamos la suma de los valores y contamos la cantidad de registros
             data[period][categoria]["suma"] += valor
             data[period][categoria]["contador"] += 1
 
     resultado_final = []
     for mes in meses:
-        # Calculamos el promedio si el contador es mayor a cero
         bocinas_promedio = data[mes]["bocinas"]["suma"] / data[mes]["bocinas"]["contador"] if data[mes]["bocinas"]["contador"] > 0 else 0
         ladridos_promedio = data[mes]["ladridos"]["suma"] / data[mes]["ladridos"]["contador"] if data[mes]["ladridos"]["contador"] > 0 else 0
         petardos_promedio = data[mes]["petardos"]["suma"] / data[mes]["petardos"]["contador"] if data[mes]["petardos"]["contador"] > 0 else 0
@@ -849,27 +849,19 @@ def generar_reporte_mensual():
     return jsonify({"frecuencias": resultado_final})
 
 
-from datetime import datetime
-
 @routes.route('/generar_reporte_diario', methods=['POST'])
 @login_requerido
 def generar_reporte_diario():
-    paciente_codigo = request.form.get('paciente_dia')  
-    fecha_dia = request.form.get('fecha_dia')  
+    paciente_codigo = request.form.get('paciente_dia')
+    fecha_dia_str = request.form.get('fecha_dia')
 
-    print('Código de paciente recibido:')
-    print(paciente_codigo)
-    
     if not paciente_codigo:
         return jsonify({"mensaje": "Código de paciente es requerido."}), 400
-    
-    if not fecha_dia:
+
+    if not fecha_dia_str:
         return jsonify({"mensaje": "Fecha del día es requerida."}), 400
-    
+
     paciente = ServiciosPaciente.obtener_por_carnet(paciente_codigo)
-    print('Datos obtenidos del paciente:')
-    print(paciente)
-    
     if paciente is None:
         return jsonify({"mensaje": "Paciente no encontrado con ese código de carnet."}), 404
 
@@ -881,8 +873,7 @@ def generar_reporte_diario():
         nombre_paciente = paciente[1]
 
     try:
-        fecha_dia = datetime.strptime(fecha_dia, '%Y-%m-%d').date()
-        print('Fecha del día:', fecha_dia)
+        fecha_dia = datetime.strptime(fecha_dia_str, '%Y-%m-%d').date()
     except ValueError:
         return jsonify({"mensaje": "Formato de fecha no válido. Debe ser YYYY-MM-DD."}), 400
 
@@ -891,16 +882,32 @@ def generar_reporte_diario():
     if not frecuencias:
         return jsonify({"mensaje": f"No se encontraron frecuencias para el paciente en la fecha {fecha_dia}."}), 404
 
-    horas = [f"{h:02d}:00" for h in range(24)]
-    data = {hora: {"bocinas": 0, "ladridos": 0, "petardos": 0} for hora in horas}
+    frecuencias.sort(key=lambda x: x['fecha'] if isinstance(x, dict) else x[3])
+    ultimos_registros = frecuencias[-20:]
 
+   
     clasificaciones = {
-        1: "bocinas", 2: "bocinas", 3: "bocinas",
-        4: "ladridos", 5: "ladridos", 6: "ladridos",
-        7: "petardos", 8: "petardos", 9: "petardos"
+        1: "ladridos",
+        2: "ladridos",
+        3: "ladridos",
+        4: "bocinas",
+        5: "bocinas",
+        6: "bocinas",
+      
+        7: "petardos",
+        8: "petardos",
+        9: "petardos"
     }
 
-    for frecuencia in frecuencias:
+    agrupados_por_periodo = defaultdict(lambda: {
+        "period": None,
+        "normales": None,
+        "bocinas": None,
+        "ladridos": None,
+        "petardos": None
+    })
+
+    for frecuencia in ultimos_registros:
         if isinstance(frecuencia, dict):
             fecha = frecuencia['fecha']
             id_clasificacion = frecuencia['id_clasificacion']
@@ -909,27 +916,29 @@ def generar_reporte_diario():
             fecha = frecuencia[3]
             id_clasificacion = frecuencia[5]
             valor = frecuencia[2]
-        
-        hora = fecha.strftime("%H:00") if isinstance(fecha, datetime) else fecha[11:16]
 
-        categoria = clasificaciones.get(id_clasificacion)
-        if not categoria:
+        if isinstance(fecha, datetime):
+            periodo = fecha.strftime("%H:%M:%S")
+        else:
+            periodo = fecha[11:19]
+
+        if id_clasificacion == 10:
+            clasificacion_label = "normales"
+        else:
+            clasificacion_label = clasificaciones.get(id_clasificacion, "desconocido")
+
+        if clasificacion_label not in ["normales", "bocinas", "ladridos", "petardos"]:
             continue
-        if hora in data:
-            data[hora][categoria] += valor
 
-    resultado_final = []
-    for hora in horas:
-        resultado_final.append({
-            "period": hora,
-            "bocinas": data[hora]["bocinas"],
-            "ladridos": data[hora]["ladridos"],
-            "petardos": data[hora]["petardos"]
-        })
+        agrupados_por_periodo[periodo]["period"] = periodo
+        agrupados_por_periodo[periodo][clasificacion_label] = valor
 
-    return jsonify({"fecha_dia": fecha_dia.strftime('%Y-%m-%d'), "frecuencias": resultado_final})
+    resultado_final = list(agrupados_por_periodo.values())
 
-
+    return jsonify({
+        "fecha_dia": fecha_dia.strftime('%Y-%m-%d'),
+        "frecuencias": resultado_final
+    })
 # ------------------------------------------ -------------------------------------------------
 
 FRECUENCIAS_NORMALES = {
@@ -1383,7 +1392,7 @@ def generate_pdf():
     clasificaciones = ServiciosClasificacion.obtener_todos()
     #print(clasificaciones)
 
-    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad', 'Irregularidad (%)']
+    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad Cardiaca', 'Irregularidad Cardiaca (%)']
     cabecera_an = ['Fecha y Hora', 'Frecuencia', 'Estado']
 
     tabla_an = []
@@ -1470,19 +1479,26 @@ def generate_pdf():
         tabla_an.append(['','Sin Anomalías',''])
     
 
+    estilo_titulos_tablas = ParagraphStyle('Titulo_tabla', fontSize=15, alignment=1, fontName="Helvetica-Bold")
     elementos.append(Spacer(1, 20))
     tabla_frecuencias = Table(tabla)
     tabla_frecuencias.setStyle(style)
+    elementos.append(Paragraph(f"Frecuencias Cardiacas con Irregularidades", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     elementos.append(tabla_frecuencias)
 
-    elementos.append(Spacer(1, 20))
+    elementos.append(Spacer(1, 35))
+    elementos.append(Paragraph(f"Anomalías del Ruido Ambiente", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     tabla_sonidos = Table(tabla_son)
     tabla_sonidos.setStyle(style)
     elementos.append(tabla_sonidos)
 
-    elementos.append(Spacer(1, 20))
+    elementos.append(Spacer(1, 35))
     tabla_anomalias = Table(tabla_an)
     tabla_anomalias.setStyle(style)
+    elementos.append(Paragraph(f"Anomalías en la Frecuencia Cardiaca", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     elementos.append(tabla_anomalias)
 
     elementos.append(Spacer(1, 20))
@@ -1700,7 +1716,7 @@ def generate_pdf2():
     clasificaciones = ServiciosClasificacion.obtener_todos()
     #print(clasificaciones)
 
-    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad', 'Irregularidad (%)']
+    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad Cardiaca', 'Irregularidad Cardiaca (%)']
     cabecera_an = ['Fecha y Hora', 'Frecuencia', 'Estado']
 
     tabla_an = []
@@ -1787,19 +1803,26 @@ def generate_pdf2():
         tabla_an.append(['','Sin Anomalías',''])
     
 
+    estilo_titulos_tablas = ParagraphStyle('Titulo_tabla', fontSize=15, alignment=1, fontName="Helvetica-Bold")
     elementos.append(Spacer(1, 20))
     tabla_frecuencias = Table(tabla)
     tabla_frecuencias.setStyle(style)
+    elementos.append(Paragraph(f"Frecuencias Cardiacas con Irregularidades", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     elementos.append(tabla_frecuencias)
 
-    elementos.append(Spacer(1, 20))
+    elementos.append(Spacer(1, 35))
+    elementos.append(Paragraph(f"Anomalías del Ruido Ambiente", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     tabla_sonidos = Table(tabla_son)
     tabla_sonidos.setStyle(style)
     elementos.append(tabla_sonidos)
 
-    elementos.append(Spacer(1, 20))
+    elementos.append(Spacer(1, 35))
     tabla_anomalias = Table(tabla_an)
     tabla_anomalias.setStyle(style)
+    elementos.append(Paragraph(f"Anomalías en la Frecuencia Cardiaca", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     elementos.append(tabla_anomalias)
 
     elementos.append(Spacer(1, 20))
@@ -2133,7 +2156,7 @@ def generate_pdf3():
     clasificaciones = ServiciosClasificacion.obtener_todos()
     #print(clasificaciones)
 
-    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad', 'Irregularidad (%)']
+    cabecera = ['Fecha y Hora', 'Frecuencia', 'Estado del Niño', 'Irregularidad Cardiaca', 'Irregularidad Cardiaca (%)']
     cabecera_an = ['Fecha y Hora', 'Frecuencia', 'Estado']
 
     tabla_an = []
@@ -2220,19 +2243,26 @@ def generate_pdf3():
         tabla_an.append(['','Sin Anomalías',''])
     
 
+    estilo_titulos_tablas = ParagraphStyle('Titulo_tabla', fontSize=15, alignment=1, fontName="Helvetica-Bold")
     elementos.append(Spacer(1, 20))
     tabla_frecuencias = Table(tabla)
     tabla_frecuencias.setStyle(style)
+    elementos.append(Paragraph(f"Frecuencias Cardiacas con Irregularidades", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     elementos.append(tabla_frecuencias)
 
-    elementos.append(Spacer(1, 20))
+    elementos.append(Spacer(1, 35))
+    elementos.append(Paragraph(f"Anomalías del Ruido Ambiente", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     tabla_sonidos = Table(tabla_son)
     tabla_sonidos.setStyle(style)
     elementos.append(tabla_sonidos)
 
-    elementos.append(Spacer(1, 20))
+    elementos.append(Spacer(1, 35))
     tabla_anomalias = Table(tabla_an)
     tabla_anomalias.setStyle(style)
+    elementos.append(Paragraph(f"Anomalías en la Frecuencia Cardiaca", estilo_titulos_tablas))
+    elementos.append(Spacer(1,25))
     elementos.append(tabla_anomalias)
 
     elementos.append(Spacer(1, 20))
