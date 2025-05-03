@@ -11,6 +11,9 @@ from flask import jsonify, request
 from datetime import datetime
 from collections import defaultdict
 
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
+
 from flask import Blueprint, render_template, request, jsonify, make_response
  
 #from app.routes.conexion import db, cursor
@@ -37,6 +40,18 @@ services_account_file = os.path.join('var', 'www', 'sistema_cardiaco', 'app', 'r
 #credentials = service_account.Credentials.from_service_account_file(services_account_file, scopes="https://www.googleapis.com/auth/cloud-plataform") # https://www.googleapis.com/auth/firebase.messaging
 #default_app = firebase_admin.initialize_app()
 
+geolocator = Nominatim(user_agent="mi_app_flask")
+
+def reverse_geocode(lat, lon, retries=3):
+    try:
+        location = geolocator.reverse((lat, lon), exactly_one=True, language='es')
+        return location.address if location else None
+    except GeocoderTimedOut:
+        if retries > 0:
+            return reverse_geocode(lat, lon, retries-1)
+        else:
+            return None
+
 def _get_access_token():
 
     credentials = service_account.Credentials.from_service_account_file(services_account_file, scopes=["https://www.googleapis.com/auth/firebase.messaging"])
@@ -48,7 +63,7 @@ def _get_access_token():
 
 FCM_URL = "https://fcm.googleapis.com/v1/projects/freqcard/messages:send"
 
-def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True):
+def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True, direccion='Ninguna'):
     headers = {
         "Authorization": 'Bearer ' + _get_access_token(),
         "Content-Type": "application/json"
@@ -59,7 +74,8 @@ def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True
     if normal:
          # Enviar mensaje data-only para actualización en tiempo real
          message["data"] = {
-             "heart_rate": str(frecuencia)
+             "heart_rate": str(frecuencia),
+             "direccion": str(direccion)
          }
     else:
          # Enviar mensaje con notificación para alerta (frecuencia anormal)
@@ -69,9 +85,12 @@ def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True
          }
          # Si se desea, se puede incluir además el dato en el campo data
          message["data"] = {
-             "heart_rate": str(frecuencia)
+             "heart_rate": str(frecuencia),
+             "direccion": str(direccion)
          }
     payload = {"message": message}
+    print(payload)
+    print(direccion)
      
      
     '''payload = {
@@ -967,6 +986,12 @@ def set_latido():
     id_user = datos.get('id_user')
     latido = float(datos.get('heart_rate'))
     fecha = datos.get('datetime')
+    latitud = datos.get('latitud', 'S/N')
+    longitud = datos.get('longitud', 'S/N')
+
+    print(f"Longitud: {longitud}\tLatitud: {latitud}")
+    direccion = reverse_geocode(latitud, longitud) or "Dirección no encontrada"
+    print(F"Direccion: {direccion}")
     
     #date_object = datetime.strptime(fecha, "%a %b %d %H:%M:%S GMT%z %Y")
 
@@ -1013,7 +1038,7 @@ def set_latido():
           
             titulo = "Frecuencia Alta Detectada"
             cuerpo = f"Frecuencia detectada de {latido} bpm"
-            result = send_fcm_notification(token_user, titulo, cuerpo, latido, False)
+            result = send_fcm_notification(token_user, titulo, cuerpo, latido, False, direccion)
             return jsonify(result), 200
         else:
             return jsonify({'message':'No hay token'}), 400
@@ -1034,7 +1059,7 @@ def set_latido():
           
             titulo = "Frecuencia Baja Detectada"
             cuerpo = f"Frecuencia detectada de {latido} bpm"
-            result = send_fcm_notification(token_user, titulo, cuerpo, latido, False)
+            result = send_fcm_notification(token_user, titulo, cuerpo, latido, False, direccion)
             return jsonify(result), 200
         else:
             return jsonify({'message':'No hay token'}), 400
@@ -1121,6 +1146,13 @@ def set_sonido():
     sonido = datos.get('sound')
     fecha = datos.get('datetime')
 
+    latitud = datos.get('latitud', 'S/N')
+    longitud = datos.get('longitud', 'S/N')
+
+    print(f"Longitud: {longitud}\tLatitud: {latitud}")
+    direccion = reverse_geocode(latitud, longitud) or "Dirección no encontrada"
+    print(F"Direccion: {direccion}")
+
     clasificacion = 10
 
     if sonido == 'bocina' or sonido=='sirena':
@@ -1142,7 +1174,7 @@ def set_sonido():
         #frecuencia_cercana = ServiciosSonido.buscar_registro_cercano(fecha_sonido, id_user)
         frecuencia_cercana = ServiciosSonido.buscar_ultimo_registro(id_paciente=id_user)
         if frecuencia_cercana:
-            id_frecuecia = frecuencia_cercana['id_frecuencia']
+            id_frecuecia = frecuencia_cercana.id_frecuencia
             freq_cerc = int(float(frecuencia_cercana['valor']))
             resultado = ServiciosFrecuencia.modificar(id_frecuecia, clasificacion)
 
@@ -1171,7 +1203,7 @@ def set_sonido():
         
         titulo = "Ruido Molesto Detectado"
         cuerpo = f"Alerta de {sonido} cerca del paciente, frecuencia cardiaca de {freq_cerc}bpm"
-        result = send_fcm_notification(token_user, titulo, cuerpo, freq_cerc, False)
+        result = send_fcm_notification(token_user, titulo, cuerpo, freq_cerc, False, direccion)
         return jsonify(result), 200
     else:
         return jsonify({'message':'No hay token'}), 200
