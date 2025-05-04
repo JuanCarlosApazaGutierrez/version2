@@ -1175,7 +1175,7 @@ def set_sonido():
         frecuencia_cercana = ServiciosSonido.buscar_ultimo_registro(id_paciente=id_user)
         if frecuencia_cercana:
             id_frecuecia = frecuencia_cercana.id_frecuencia
-            freq_cerc = int(float(frecuencia_cercana['valor']))
+            freq_cerc = int(float(frecuencia_cercana.valor))
             resultado = ServiciosFrecuencia.modificar(id_frecuecia, clasificacion)
 
 
