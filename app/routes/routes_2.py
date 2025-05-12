@@ -1152,9 +1152,13 @@ def set_sonido():
     longitud = datos.get('longitud', 'S/N')
 
     ruido = datos.get('ruido', '00')
+    print(ruido)
 
     print(f"Longitud: {longitud}\tLatitud: {latitud}")
-    direccion = reverse_geocode(latitud, longitud) or "Dirección no encontrada"
+    if(latitud == 'S/N' or longitud=='S/N'):
+        direccion = "Direccion no encontrada"
+    else:
+        direccion = reverse_geocode(latitud, longitud) or "Dirección no encontrada"
     print(F"Direccion: {direccion}")
 
     clasificacion = 10
