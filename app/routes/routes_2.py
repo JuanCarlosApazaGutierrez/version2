@@ -992,7 +992,11 @@ def set_latido():
     longitud = datos.get('longitud', 'S/N')
 
     print(f"Longitud: {longitud}\tLatitud: {latitud}")
-    direccion = reverse_geocode(latitud, longitud) or "Dirección no encontrada"
+    if(latitud == 'S/N' or longitud=='S/N'):
+        direccion = "Direccion no encontrada"
+    else:
+        direccion = reverse_geocode(latitud, longitud) or "Dirección no encontrada"
+    #direccion = reverse_geocode(latitud, longitud) or "Dirección no encontrada"
     print(F"Direccion: {direccion}")
     
     #date_object = datetime.strptime(fecha, "%a %b %d %H:%M:%S GMT%z %Y")
@@ -1119,6 +1123,10 @@ def set_tokens():
     token = datos.get('token')
      
     paciente = ServiciosPaciente.obtener_por_carnet(id_user)
+    print(f"id de usuario: {id_user}")
+
+    if not paciente:
+        paciente = ServiciosPaciente.obtener_por_id(id_user)
 
     id_enc = paciente['id_encargado']
 
@@ -1225,6 +1233,12 @@ def obtener_paciente():
   
 
     pacientes_lista = ServiciosPaciente.obtener_por_carnet(id_usuario)
+    print(f"id de usuario: {id_usuario}")
+
+    if not pacientes_lista:
+        pacientes_lista = ServiciosPaciente.obtener_por_id(id_usuario)
+
+
 
     id_tutor = pacientes_lista['id_encargado']
  
