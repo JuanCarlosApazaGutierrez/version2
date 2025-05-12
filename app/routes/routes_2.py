@@ -1983,22 +1983,7 @@ def crear_modificar_app():
  
          
  
-        '''if not re.match(r"[^@]+@[^@]+\.[^@]+", correo):    
-            return jsonify({"mensaje": "Correo electrónico inválido"}), 400
- 
-        # Generar el hash de la contraseña antes de almacenarla
-         
-        usuario_nuevo = ServiciosUsuario.crear(nombre, correo, carnet, telefono, password, id_rol)'''
- 
-        # Insertar el nuevo usuario con la contraseña hasheada
-        '''cursor.execute(
-             """
-             INSERT INTO usuario (nombre, correo, carnet, telefono, password, id_rol) 
-             VALUES (%s, %s, %s, %s, %s, %s)
-             """, 
-             (nombre, correo, carnet, telefono, password, id_rol)
-         )
-        db.commit()'''
+        
  
         if paciente:
  
