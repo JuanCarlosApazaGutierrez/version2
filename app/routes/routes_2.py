@@ -63,7 +63,7 @@ def _get_access_token():
 
 FCM_URL = "https://fcm.googleapis.com/v1/projects/freqcard/messages:send"
 
-def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True, direccion='Ninguna'):
+def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True, direccion='Ninguna', ruido='-1'):
     headers = {
         "Authorization": 'Bearer ' + _get_access_token(),
         "Content-Type": "application/json"
@@ -75,7 +75,8 @@ def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True
          # Enviar mensaje data-only para actualización en tiempo real
          message["data"] = {
              "heart_rate": str(frecuencia),
-             "direccion": str(direccion)
+             "direccion": str(direccion),
+             "ruido": str(ruido)
          }
     else:
          # Enviar mensaje con notificación para alerta (frecuencia anormal)
@@ -86,7 +87,8 @@ def send_fcm_notification(device_token, title, body, frecuencia = 0, normal=True
          # Si se desea, se puede incluir además el dato en el campo data
          message["data"] = {
              "heart_rate": str(frecuencia),
-             "direccion": str(direccion)
+             "direccion": str(direccion),
+             "ruido": str(ruido)
          }
     payload = {"message": message}
     print(payload)
@@ -1149,6 +1151,8 @@ def set_sonido():
     latitud = datos.get('latitud', 'S/N')
     longitud = datos.get('longitud', 'S/N')
 
+    ruido = datos.get('ruido', '00')
+
     print(f"Longitud: {longitud}\tLatitud: {latitud}")
     direccion = reverse_geocode(latitud, longitud) or "Dirección no encontrada"
     print(F"Direccion: {direccion}")
@@ -1203,7 +1207,7 @@ def set_sonido():
         
         titulo = "Ruido Molesto Detectado"
         cuerpo = f"Alerta de {sonido} cerca del paciente, frecuencia cardiaca de {freq_cerc}bpm"
-        result = send_fcm_notification(token_user, titulo, cuerpo, freq_cerc, False, direccion)
+        result = send_fcm_notification(token_user, titulo, cuerpo, freq_cerc, False, direccion, ruido)
         return jsonify(result), 200
     else:
         return jsonify({'message':'No hay token'}), 200
