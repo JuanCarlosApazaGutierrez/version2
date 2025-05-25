@@ -1297,6 +1297,12 @@ from reportlab.platypus import SimpleDocTemplate
 import queue
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Image as RLImage, Paragraph
 from io import BytesIO
+
+margin_left = 1.0 * inch
+margin_right = 1.0 * inch
+margin_top = 2.5 * inch  # Deja espacio para el carimbo
+margin_bottom = 1.0 * inch
+
 @routes.route('/generate_pdf', methods=['GET'])
 def generate_pdf():
     id_paciente = request.args.get("id_paciente") # es ID no carnet
@@ -1374,7 +1380,11 @@ def generate_pdf():
     buffer = BytesIO()
 
 
-    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    pdf = SimpleDocTemplate(buffer, pagesize=letter,
+                            leftMargin=margin_left,
+                            rightMargin=margin_right,
+                            topMargin=margin_top,
+                            bottomMargin=margin_bottom)
     elementos = []
 
     estilos = getSampleStyleSheet()
@@ -1698,7 +1708,10 @@ def generate_pdf2():
     buffer = BytesIO()
 
 
-    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    pdf = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=margin_left,
+                            rightMargin=margin_right,
+                            topMargin=margin_top,
+                            bottomMargin=margin_bottom)
     elementos = []
 
     estilos = getSampleStyleSheet()
@@ -2123,7 +2136,10 @@ def generate_pdf3():
     buffer = BytesIO()
 
 
-    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    pdf = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=margin_left,
+                            rightMargin=margin_right,
+                            topMargin=margin_top,
+                            bottomMargin=margin_bottom)
     elementos = []
 
     estilos = getSampleStyleSheet()
