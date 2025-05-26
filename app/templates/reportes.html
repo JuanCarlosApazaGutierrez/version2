@@ -114,7 +114,7 @@ function generarReporteDiario() {
             'csrfmiddlewaretoken': '{{ csrf_token }}'  
         },
         success: function(response) {
-            alert("Reporte diario generado con éxito.");
+            //alert("Reporte diario generado con éxito.");
             console.log(response);
             Morris.Line({
                 element: 'hero-graph',
@@ -151,7 +151,7 @@ function generarReporteMensual() {
             'csrfmiddlewaretoken': '{{ csrf_token }}'   
         },
         success: function(response) {
-            alert("Reporte mensual generado con éxito.");
+            //alert("Reporte mensual generado con éxito.");
             console.log(response);   
 
             // Actualizar la gráfica mensual con los datos obtenidos
