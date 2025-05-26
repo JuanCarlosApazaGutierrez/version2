@@ -1300,7 +1300,7 @@ from io import BytesIO
 
 margin_left = 1.0 * inch
 margin_right = 1.0 * inch
-margin_top = 2.5 * inch  # Deja espacio para el carimbo
+margin_top = 3.5 * inch  # Deja espacio para el carimbo
 margin_bottom = 1.0 * inch
 
 @routes.route('/generate_pdf', methods=['GET'])
