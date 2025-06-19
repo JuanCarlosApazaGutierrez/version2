@@ -290,7 +290,8 @@ def verificar_login():
 @login_requerido
 def usuarios():
 
-    usuarios = ServiciosUsuario.obtener_todos()
+    usuarios_padres = ServiciosUsuario.obtener_todos_padres()
+    usuarios_administradores = ServiciosUsuario.obtener_todos_administradores()
     print(usuarios)
 
     '''cursor.execute("SELECT u.id_usuario, u.nombre, u.correo, u.activo, u.carnet, u.telefono, r.nombre AS rol FROM usuario u JOIN roles r ON u.id_rol = r.id_rol ")
@@ -306,7 +307,7 @@ def usuarios():
     nombre_usuario = session.get('nombre', 'Usuario Invitado')
     total_pacientes = session.get('total_pacientes')
     total_usuarios = session.get('total_usuarios')
-    return render_template("usuario.html", usuarios=usuarios, roles=roles,nombre_usuario=nombre_usuario, total_pacientes= total_pacientes, total_usuarios= total_usuarios)
+    return render_template("usuario.html", usuarios_padres=usuarios_padres, usuarios_administradores=usuarios_administradores, roles=roles,nombre_usuario=nombre_usuario, total_pacientes= total_pacientes, total_usuarios= total_usuarios)
 
  
 @routes.route("/agregar_usuario", methods=["POST"])

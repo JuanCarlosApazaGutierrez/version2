@@ -27,6 +27,12 @@ class ServiciosUsuario():
         datos_req = ['id_usuario', 'nombre', 'correo', 'carnet', 'telefono', 'password', 'id_rol', 'activo']
         respuesta = SerializadorUniversal.serializar_lista(registros, datos_req)
         return respuesta
+    
+    def obtener_todos_administradores():
+        registros = Usuario.query.filter_by(id_rol=1).all()
+        datos_req = ['id_usuario', 'nombre', 'correo', 'carnet', 'telefono', 'password', 'id_rol', 'activo']
+        respuesta = SerializadorUniversal.serializar_lista(registros, datos_req)
+        return respuesta
 
 
     def obtener_activos():
